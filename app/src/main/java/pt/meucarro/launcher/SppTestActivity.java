@@ -63,6 +63,7 @@ public class SppTestActivity extends Activity {
                 add("Procura terminada.");
             } else if (BluetoothDevice.ACTION_BOND_STATE_CHANGED.equals(action) && d != null) {
                 int state = intent.getIntExtra(BluetoothDevice.EXTRA_BOND_STATE, BluetoothDevice.BOND_NONE);
+                if (state == BluetoothDevice.BOND_BONDING) add("A emparelhar com " + name(d) + "… confirme no rádio e no PC.");
                 if (state == BluetoothDevice.BOND_BONDED) {
                     add("Emparelhado com " + name(d) + ".");
                     devices.put(d.getAddress(), d);
@@ -98,6 +99,9 @@ public class SppTestActivity extends Activity {
         top.setGravity(Gravity.CENTER_VERTICAL);
         top.addView(text("Teste de ligação (como o adaptador)", "600", 28, 0xFFF2F3F5),
                 new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        top.addView(button("Tornar o rádio visível", false, v -> makeVisible()));
+        View gap0 = new View(this);
+        top.addView(gap0, new LinearLayout.LayoutParams(12, 1));
         top.addView(button("Procurar aparelhos", false, v -> discover()));
         View gap = new View(this);
         top.addView(gap, new LinearLayout.LayoutParams(12, 1));
@@ -213,16 +217,62 @@ public class SppTestActivity extends Activity {
 
     private void onDevice(BluetoothDevice d) {
         if (busy) return;
+        busy = true;
+        boolean wasDiscovering = false;
         try {
+            wasDiscovering = adapter.isDiscovering();
             adapter.cancelDiscovery();
         } catch (Exception ignored) {
         }
-        if (d.getBondState() != BluetoothDevice.BOND_BONDED) {
+        if (d.getBondState() == BluetoothDevice.BOND_BONDED) {
+            busy = false;
+            connect(d);
+            return;
+        }
+        // Alguns rádios recusam emparelhar enquanto ainda estão a procurar: espera um pouco
+        if (wasDiscovering) add("A parar a procura…");
+        main.postDelayed(() -> {
+            busy = false;
             add("A emparelhar com " + name(d) + "… aceite no rádio e no PC.");
             pendingBond = d;
-            if (!d.createBond()) add("✗ O rádio não deixou emparelhar.");
-        } else {
+            if (bond(d)) return;
+            // O rádio recusou o pedido de emparelhamento: tenta ligar diretamente,
+            // o Android emparelha durante a ligação (é assim que muitas apps OBD fazem)
+            pendingBond = null;
+            add("O rádio recusou o pedido de emparelhamento. A tentar ligar diretamente…");
             connect(d);
+        }, wasDiscovering ? 2000 : 300);
+    }
+
+    /** Pede o emparelhamento pela forma normal e, se falhar, pela forma "Bluetooth clássico". */
+    private boolean bond(BluetoothDevice d) {
+        try {
+            if (d.createBond()) return true;
+        } catch (Exception ignored) {
+        }
+        try {
+            Method m = d.getClass().getMethod("createBond", int.class);
+            Object ok = m.invoke(d, 1); // 1 = TRANSPORT_BREDR (Bluetooth clássico)
+            if (Boolean.TRUE.equals(ok)) {
+                add("(emparelhamento pedido pela forma alternativa)");
+                return true;
+            }
+        } catch (Exception ignored) {
+        }
+        return false;
+    }
+
+    /** Deixa o PC encontrar o rádio durante 2 minutos (para emparelhar a partir do PC). */
+    private void makeVisible() {
+        try {
+            Intent i = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
+            i.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120);
+            startActivity(i);
+            add("Rádio visível durante 2 minutos com o nome \"" + adapter.getName() + "\". No PC: Definições → "
+                    + "Bluetooth → Adicionar dispositivo → Bluetooth → escolha o rádio e confirme o código. "
+                    + "Depois volte aqui, carregue em \"Procurar aparelhos\" e toque no PC.");
+        } catch (Exception e) {
+            add("✗ O rádio não deixou ficar visível: " + e.getMessage());
         }
     }
 
