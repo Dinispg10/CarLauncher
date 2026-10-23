@@ -481,6 +481,7 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
                 })
                 .item("Teste do telefone", this::runPhoneTest)
                 .item("Teste dos botões físicos", () -> startActivity(new Intent(this, KeyTestActivity.class)))
+                .item("Enviar a app do carro para o PC", this::shareCarApps)
                 .item("Copiar a app do carro para análise", this::exportCarApps)
                 .section("Sistema")
                 .item("Procurar atualizações", Updater::currentVersion, true, () -> Updater.check(this, false))
@@ -526,6 +527,25 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
             return;
         }
         BluetoothTest.run(this);
+    }
+
+    /** Mostra um endereço para descarregar as apps do carro no PC (mesma rede Wi-Fi). Só lê. */
+    private void shareCarApps() {
+        String url = ApkShare.start(this);
+        if (url == null) {
+            Sheet.message(this, "Enviar para o PC",
+                    "O rádio não está ligado a nenhuma rede Wi-Fi. Ligue o hotspot do telemóvel e tente outra vez.");
+            return;
+        }
+        Sheet.create(this, "Enviar para o PC").width(860)
+                .message("1) Ligue o PC à MESMA rede Wi-Fi do rádio (o hotspot do telemóvel).\n\n"
+                        + "2) No PC, abra o Chrome/Edge e escreva este endereço:\n\n      " + url + "\n\n"
+                        + "3) Descarregue os ficheiros da lista e anexe-os na conversa com o Claude.\n\n"
+                        + "Isto só lê as apps; não muda nada no rádio nem no carro. "
+                        + "Desliga-se sozinho daqui a 15 minutos.")
+                .button("Parar", false, ApkShare::stop)
+                .button("OK", true, null)
+                .show();
     }
 
     /** Copia a app "Car Set" para a pasta Download (para ser analisada). */
