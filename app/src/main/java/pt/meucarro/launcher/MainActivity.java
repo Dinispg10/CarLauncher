@@ -475,6 +475,10 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
                         .button("OK", true, null)
                         .show())
                 .item("Teste de Bluetooth (adaptador OBD2)", this::runBluetoothTest)
+                .item("Teste de ligação com o PC (como o adaptador)", () -> {
+                    sppAfterPermission = true;
+                    runBluetoothTest();
+                })
                 .item("Teste do telefone", this::runPhoneTest)
                 .item("Teste dos botões físicos", () -> startActivity(new Intent(this, KeyTestActivity.class)))
                 .item("Copiar a app do carro para análise", this::exportCarApps)
@@ -504,6 +508,8 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
     }
 
     /** Procura aparelhos Bluetooth BLE com o telemóvel ligado, para saber se o OBD2 vai funcionar. */
+    private boolean sppAfterPermission;
+
     private void runBluetoothTest() {
         String[] needed = android.os.Build.VERSION.SDK_INT >= 31
                 ? new String[]{"android.permission.BLUETOOTH_SCAN", "android.permission.BLUETOOTH_CONNECT"}
@@ -513,6 +519,11 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
                 requestPermissions(needed, REQ_BT);
                 return;
             }
+        }
+        if (sppAfterPermission) {
+            sppAfterPermission = false;
+            startActivity(new Intent(this, SppTestActivity.class));
+            return;
         }
         BluetoothTest.run(this);
     }

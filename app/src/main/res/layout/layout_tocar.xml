@@ -143,6 +143,12 @@
                 android:textColor="#FF9AA0A6"
                 android:textSize="24px" />
 
+            <pt.meucarro.launcher.EqualizerView
+                android:id="@+id/np_eq"
+                android:layout_width="match_parent"
+                android:layout_height="56px"
+                android:layout_marginTop="18px" />
+
             <TextView
                 android:id="@+id/btn_access"
                 android:layout_width="wrap_content"

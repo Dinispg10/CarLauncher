@@ -168,7 +168,7 @@ public final class BluetoothTest {
     }
 
     @SuppressLint("MissingPermission")
-    private static boolean connected(BluetoothAdapter adapter, int profile) {
+    static boolean connected(BluetoothAdapter adapter, int profile) {
         try {
             return adapter.getProfileConnectionState(profile) == BluetoothProfile.STATE_CONNECTED;
         } catch (Exception e) {

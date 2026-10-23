@@ -23,6 +23,7 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
     private TextView label, title, subtitle, chip, timePos, timeDur, access;
     private ImageView art, artPlaceholder, play;
     private View progressRow, progressTrack, progressFill, progressThumb;
+    private EqualizerView eq;
 
     private final Runnable ticker = new Runnable() {
         @Override
@@ -57,6 +58,8 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
         artPlaceholder = findViewById(R.id.art_placeholder);
         play = findViewById(R.id.np_play);
         progressRow = findViewById(R.id.progress_row);
+        eq = findViewById(R.id.np_eq);
+        eq.setColor(currentAccent);
         progressTrack = findViewById(R.id.progress_track);
         progressFill = findViewById(R.id.progress_fill);
         progressThumb = findViewById(R.id.progress_thumb);
@@ -148,6 +151,7 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
             access.setVisibility(View.VISIBLE);
             chip.setVisibility(View.GONE);
             progressRow.setVisibility(View.GONE);
+            eq.setMode(EqualizerView.Mode.STOPPED);
             showArt(null);
             updateAccent();
             return;
@@ -162,6 +166,7 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
             showChip("Telemóveis");
             progressRow.setVisibility(View.GONE);
             play.setImageResource(R.drawable.ic_play_dark);
+            eq.setMode(EqualizerView.Mode.STOPPED);
             showArt(null);
             updateAccent();
             return;
@@ -173,6 +178,7 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
         boolean playing = hub.isPlaying();
 
         label.setText(playing ? "A TOCAR" : "EM PAUSA");
+        eq.setMode(playing ? EqualizerView.Mode.PLAYING : EqualizerView.Mode.STOPPED);
         title.setText(songTitle);
         StringBuilder sub = new StringBuilder();
         if (artist != null) sub.append(artist);
@@ -199,6 +205,7 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
         if (next != currentAccent) {
             Ui.animateAccent(root, currentAccent, next);
             currentAccent = next;
+            eq.setColor(next);
         }
     }
 
