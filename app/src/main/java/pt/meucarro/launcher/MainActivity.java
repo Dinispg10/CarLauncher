@@ -461,28 +461,8 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
                 .section("Música")
                 .item("Acesso a notificações", () -> hub.hasAccess() ? "Ativo" : "Desativado", true,
                         () -> MediaHub.openAccessSettings(this))
-                .item("Diagnóstico da música", this::showMediaDiagnostics)
-                .item("Registo de som", () -> Sheet.create(this, "Registo de som")
-                        .width(860)
-                        .message(AudioLog.dump())
-                        .button("Limpar", false, AudioLog::clear)
-                        .button("OK", true, null)
-                        .show())
                 .section("Carro")
-                .item("Diagnóstico do carro", () -> Sheet.create(this, "Diagnóstico do carro")
-                        .width(880)
-                        .message(CarDiagnostics.report(this))
-                        .button("OK", true, null)
-                        .show())
-                .item("Teste de Bluetooth (adaptador OBD2)", this::runBluetoothTest)
-                .item("Teste de ligação com o PC (como o adaptador)", () -> {
-                    sppAfterPermission = true;
-                    runBluetoothTest();
-                })
-                .item("Teste do telefone", this::runPhoneTest)
-                .item("Teste dos botões físicos", () -> startActivity(new Intent(this, KeyTestActivity.class)))
                 .item("Enviar a app do carro para o PC", this::shareCarApps)
-                .item("Copiar a app do carro para análise", this::exportCarApps)
                 .section("Sistema")
                 .item("Procurar atualizações", Updater::currentVersion, true, () -> Updater.check(this, false))
                 .item("Definições do Android", () -> {
@@ -494,39 +474,6 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
                 })
                 .button("Fechar", true, null)
                 .show();
-    }
-
-    private static final int REQ_STORAGE = 3;
-    private static final int REQ_BT = 4;
-    private static final int REQ_PHONE = 5;
-
-    private void runPhoneTest() {
-        if (!PhoneTest.hasPermissions(this)) {
-            requestPermissions(PhoneTest.PERMISSIONS, REQ_PHONE);
-            return;
-        }
-        PhoneTest.run(this);
-    }
-
-    /** Procura aparelhos Bluetooth BLE com o telemóvel ligado, para saber se o OBD2 vai funcionar. */
-    private boolean sppAfterPermission;
-
-    private void runBluetoothTest() {
-        String[] needed = android.os.Build.VERSION.SDK_INT >= 31
-                ? new String[]{"android.permission.BLUETOOTH_SCAN", "android.permission.BLUETOOTH_CONNECT"}
-                : new String[]{Manifest.permission.ACCESS_FINE_LOCATION};
-        for (String perm : needed) {
-            if (checkSelfPermission(perm) != PackageManager.PERMISSION_GRANTED) {
-                requestPermissions(needed, REQ_BT);
-                return;
-            }
-        }
-        if (sppAfterPermission) {
-            sppAfterPermission = false;
-            startActivity(new Intent(this, SppTestActivity.class));
-            return;
-        }
-        BluetoothTest.run(this);
     }
 
     /** Mostra um endereço para descarregar as apps do carro no PC (mesma rede Wi-Fi). Só lê. */
@@ -544,22 +491,6 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
                         + "Isto só lê as apps; não muda nada no rádio nem no carro. "
                         + "Desliga-se sozinho daqui a 15 minutos.")
                 .button("Parar", false, ApkShare::stop)
-                .button("OK", true, null)
-                .show();
-    }
-
-    /** Copia a app "Car Set" para a pasta Download (para ser analisada). */
-    private void exportCarApps() {
-        if (android.os.Build.VERSION.SDK_INT < 29
-                && checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQ_STORAGE);
-            return;
-        }
-        String result = CarDiagnostics.exportApks(this);
-        Sheet.create(this, "App do carro copiada")
-                .message(result + "\n\nOs ficheiros estão na pasta Download do rádio. "
-                        + "Envie-os pelo PairDrop ou pelo Google Drive para o telemóvel, "
-                        + "e depois anexe-os na conversa com o Claude.")
                 .button("OK", true, null)
                 .show();
     }
@@ -583,20 +514,6 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
         return Night.ON.equals(mode) ? "Sempre ligado" : Night.OFF.equals(mode) ? "Sempre desligado" : "Automático";
     }
 
-    /** Mostra que apps estão a publicar música, para perceber problemas com o Bluetooth. */
-    private void showMediaDiagnostics() {
-        StringBuilder text = new StringBuilder();
-        text.append("Acesso a notificações: ").append(hub.hasAccess() ? "sim" : "não").append("\n\n");
-        for (String line : hub.describeSessions()) text.append("• ").append(line).append("\n");
-        if (hub.hasMedia()) {
-            text.append("\nEm uso: ").append(hub.sourceLabel())
-                    .append("\nTítulo: ").append(hub.title())
-                    .append("\nArtista: ").append(hub.artist())
-                    .append("\nDuração: ").append(hub.durationMs() / 1000).append(" s")
-                    .append("\nCapa por Bluetooth: ").append(hub.art() != null ? "sim" : "não");
-        }
-        Sheet.message(this, "Diagnóstico da música", text.toString().trim());
-    }
 
     private void chooseAccent() {
         Sheet sheet = Sheet.create(this, "Cor de destaque")
@@ -817,18 +734,6 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQ_PHONE) {
-            PhoneTest.run(this); // corre mesmo sem autorização: mostra o que conseguir ver
-            return;
-        }
-        if (requestCode == REQ_BT) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) runBluetoothTest();
-            return;
-        }
-        if (requestCode == REQ_STORAGE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) exportCarApps();
-            return;
-        }
         if (requestCode == REQ_LOCATION) {
             startLocation();
             TripService.start(this);

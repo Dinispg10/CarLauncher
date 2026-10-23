@@ -29,6 +29,9 @@ import java.util.Collections;
  */
 public final class ApkShare {
 
+    /** Apps do carro (XYGala) que vale a pena analisar. */
+    static final String[] CAR_PACKAGES = {"com.xygala.canbus", "com.xygala.pvcanset"};
+
     public static final int PORT = 8080;
     private static ServerSocket server;
     private static Context app;
@@ -138,7 +141,7 @@ public final class ApkShare {
 
     private static File apkFile(String pkg) {
         boolean known = false;
-        for (String p : CarDiagnostics.CAR_PACKAGES) if (p.equals(pkg)) known = true;
+        for (String p : CAR_PACKAGES) if (p.equals(pkg)) known = true;
         if (!known) return null;
         try {
             ApplicationInfo info = app.getPackageManager().getApplicationInfo(pkg, 0);
@@ -155,7 +158,7 @@ public final class ApkShare {
                 .append("<title>Apps do carro</title><body style='font-family:sans-serif;background:#0b0d10;")
                 .append("color:#f2f3f5;padding:24px;font-size:18px'><h2>Apps do carro (Launcher do Carro)</h2>")
                 .append("<p>Descarregue os ficheiros e anexe-os na conversa com o Claude.</p><ul>");
-        for (String pkg : CarDiagnostics.CAR_PACKAGES) {
+        for (String pkg : CAR_PACKAGES) {
             File f = apkFile(pkg);
             if (f != null) {
                 sb.append("<li style='margin:12px 0'><a style='color:#5eead4' href='/").append(pkg).append(".apk'>")
@@ -175,7 +178,7 @@ public final class ApkShare {
         StringBuilder sb = new StringBuilder();
         int flags = PackageManager.GET_ACTIVITIES | PackageManager.GET_SERVICES | PackageManager.GET_RECEIVERS
                 | PackageManager.GET_PROVIDERS | PackageManager.GET_PERMISSIONS | PackageManager.GET_META_DATA;
-        for (String pkg : CarDiagnostics.CAR_PACKAGES) {
+        for (String pkg : CAR_PACKAGES) {
             sb.append("=== ").append(pkg).append(" ===\n");
             try {
                 PackageInfo p = pm.getPackageInfo(pkg, flags);

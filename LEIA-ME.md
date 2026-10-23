@@ -55,8 +55,7 @@ incluindo o Spotify do telemóvel por Bluetooth.
 - A etiqueta "Telemóveis ›" no canto do ecrã "A tocar" abre a app de Bluetooth do rádio
   (a mesma do botão Telefone), para gerir os telemóveis.
 - **Toque longo no cartão de multimédia** abre a app de música escolhida para o botão Música.
-- Se a música não aparecer: Definições do launcher → **Diagnóstico da música**.
-  Tire uma foto a esse ecrã, para se perceber o que o rádio está a enviar.
+- Se a música não aparecer: Definições do launcher → **Acesso a notificações** tem de estar "Ativo".
 
 Para atualizar da versão 1 basta instalar o novo APK por cima. As definições mantêm-se.
 
@@ -120,8 +119,9 @@ Antena 1, Antena 3 e TSF. Um toque numa rádio põe-na a tocar; outro toque para
 O rádio tem uma caixa CAN que lê dados do Golf (combustível, temperatura exterior, bateria,
 km totais, portas…), visíveis na app CanSetting do rádio.
 - No ecrã Carro, o cartão **"Dados do carro ›"** abre essa app. Toque longo para escolher outra.
-- Definições do launcher → **Diagnóstico do carro**: mostra como o rádio partilha esses dados.
-  Tire fotos a esse ecrã para se perceber se o launcher os consegue mostrar diretamente.
+- Definições do launcher → **Enviar a app do carro para o PC**: com o PC no mesmo Wi-Fi,
+  abre-se o endereço mostrado no browser e descarregam-se as apps CanSetting para análise
+  (só leitura; desliga-se ao fim de 15 minutos).
 
 ## 11. Rádio e telemóvel separados (versão 3.5)
 

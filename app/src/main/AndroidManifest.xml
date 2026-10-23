@@ -7,24 +7,17 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Atualizações pela internet (GitHub) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    <!-- Teste do telefone: ver se a agenda e as chamadas do telemóvel estão no Android -->
-    <uses-permission android:name="android.permission.READ_CONTACTS" />
-    <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Para ver as apps do rádio (ex.: a app CAN) no diagnóstico do carro; a app é instalada à mão -->
+    <!-- Para ver as apps instaladas no rádio (lista de apps e app CAN) -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
-    <!-- Bluetooth: teste de ligação (e, no futuro, o adaptador OBD2) -->
+    <!-- Bluetooth: adaptador OBD2 (no futuro) -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <!-- Só para copiar a app do carro para a pasta Download (diagnóstico) -->
-    <uses-permission
-        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28" />
 
     <queries>
         <intent>
@@ -78,16 +71,6 @@
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode"
             android:exported="false"
             android:launchMode="singleTop" />
-
-        <activity
-            android:name=".SppTestActivity"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode"
-            android:exported="false" />
-
-        <activity
-            android:name=".KeyTestActivity"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode"
-            android:exported="false" />
 
         <!-- Resultado da instalação de uma atualização -->
         <receiver
