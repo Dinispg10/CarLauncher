@@ -75,7 +75,12 @@ public class SppTestActivity extends Activity {
                 } else if (state == BluetoothDevice.BOND_NONE && pendingBond != null
                         && pendingBond.getAddress().equals(d.getAddress())) {
                     pendingBond = null;
-                    add("✗ O emparelhamento com " + name(d) + " não foi aceite.");
+                    int reason = intent.getIntExtra("android.bluetooth.device.extra.REASON", -1);
+                    add("✗ O emparelhamento com " + name(d) + " não terminou"
+                            + (reason >= 0 ? " (motivo " + reason + ")" : "") + ". No Windows aparece um aviso "
+                            + "\"Adicionar um dispositivo\" no canto inferior direito: tem de carregar nele e em "
+                            + "\"Permitir\"/\"Sim\" em poucos segundos. Em alternativa use \"Tornar o rádio visível\" "
+                            + "e emparelhe a partir do PC.");
                 }
             }
         }
@@ -227,6 +232,13 @@ public class SppTestActivity extends Activity {
         if (d.getBondState() == BluetoothDevice.BOND_BONDED) {
             busy = false;
             connect(d);
+            return;
+        }
+        if (d.getBondState() == BluetoothDevice.BOND_BONDING) {
+            // Já há um emparelhamento a decorrer: pedir outro faz o rádio recusar
+            busy = false;
+            pendingBond = d;
+            add("Já está a emparelhar com " + name(d) + ": confirme o aviso no PC e no rádio e aguarde.");
             return;
         }
         // Alguns rádios recusam emparelhar enquanto ainda estão a procurar: espera um pouco
