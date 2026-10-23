@@ -1,0 +1,221 @@
+package pt.meucarro.launcher;
+
+import android.app.Activity;
+import android.graphics.drawable.GradientDrawable;
+import android.os.Bundle;
+import android.util.TypedValue;
+import android.view.Gravity;
+import android.view.ViewGroup;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+
+/** Ecrã Carro: viagem atual em destaque, motor (OBD2, em breve) e as últimas 10 viagens. */
+public class TripsActivity extends Activity implements TripService.Listener {
+
+    private static final Locale PT = Locale.forLanguageTag("pt-PT");
+
+    private int accent;
+    private LinearLayout list;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        accent = Ui.effectiveAccent(this, MediaHub.get(this));
+
+        ScaleFrame frame = new ScaleFrame(this);
+        getLayoutInflater().inflate(R.layout.layout_trips, frame, true);
+        setContentView(frame);
+        Ui.style(frame, accent);
+
+        list = findViewById(R.id.trips_list);
+
+        // Dados do carro: abre a app CAN do rádio (a que mostra combustível, temperatura, etc.)
+        android.view.View carCard = findViewById(R.id.car_data_card);
+        carCard.setOnClickListener(v -> openCarApp());
+        carCard.setOnLongClickListener(v -> {
+            chooseCarApp();
+            return true;
+        });
+        findViewById(R.id.btn_back).setOnClickListener(v -> finish());
+        findViewById(R.id.btn_new_trip).setOnClickListener(v ->
+                Sheet.confirm(this, "Começar nova viagem?",
+                        "A viagem atual fica guardada na lista das últimas viagens.",
+                        "Começar", () -> {
+                            TripService.reset(this);
+                            render();
+                        }));
+    }
+
+    private static final String[] CAR_APP_KEYWORDS = {
+            "cansetting", "can setting", "canbus", "canbox", "original car", "car setting", "carsetting",
+            "car info", "carinfo", "vehicle",
+    };
+
+    private void openCarApp() {
+        android.content.SharedPreferences prefs = getSharedPreferences("launcher", MODE_PRIVATE);
+        String pkg = prefs.getString("slot_car_pkg", null);
+        String cls = prefs.getString("slot_car_cls", null);
+        if (pkg == null) {
+            AppUtils.AppEntry found = AppUtils.detect(AppUtils.listApps(this, false), CAR_APP_KEYWORDS);
+            if (found != null) {
+                pkg = found.pkg;
+                cls = found.cls;
+                prefs.edit().putString("slot_car_pkg", pkg).putString("slot_car_cls", cls).apply();
+            }
+        }
+        if (!AppUtils.launch(this, pkg, cls)) chooseCarApp();
+    }
+
+    private void chooseCarApp() {
+        Sheet sheet = Sheet.create(this, "Que app mostra os dados do carro?")
+                .message("Normalmente chama-se CanSetting, Car Setting ou parecido.");
+        for (AppUtils.AppEntry app : AppUtils.listApps(this, true)) {
+            sheet.item(app.icon, app.label, () -> {
+                getSharedPreferences("launcher", MODE_PRIVATE).edit()
+                        .putString("slot_car_pkg", app.pkg).putString("slot_car_cls", app.cls).apply();
+                AppUtils.launch(this, app.pkg, app.cls);
+            });
+        }
+        sheet.button("Cancelar", false, null).show();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        Ui.applySystemBars(this);
+        Night.apply(this, Night.isNight(this));
+        TripService.addListener(this);
+        render();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        TripService.removeListener(this);
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) Ui.applySystemBars(this);
+    }
+
+    @Override
+    public void onTripChanged() {
+        render();
+    }
+
+    private void render() {
+        // ---- Viagem atual ----
+        TripService.Trip current = TripService.current(this);
+        TextView state = findViewById(R.id.cur_state);
+        TextView km = findViewById(R.id.cur_km);
+        TextView time = findViewById(R.id.cur_time);
+        TextView avg = findViewById(R.id.cur_avg);
+        TextView since = findViewById(R.id.cur_since);
+        if (current != null) {
+            state.setText("A DECORRER");
+            state.setTextColor(accent);
+            km.setText(current.km < 10
+                    ? String.format(PT, "%.1f", current.km)
+                    : String.valueOf(Math.round(current.km)));
+            time.setText(TripService.formatDuration(current.durationMs));
+            avg.setText(current.durationMs > 60000 ? Math.round(current.avgKmh()) + " km/h" : "—");
+            since.setText("Desde as " + new SimpleDateFormat("HH:mm", PT).format(new Date(current.startMs)));
+        } else {
+            state.setText("PARADO");
+            state.setTextColor(0xFF9AA0A6);
+            km.setText("0");
+            time.setText("—");
+            avg.setText("—");
+            since.setText("Começa sozinha quando o carro andar");
+        }
+
+        // ---- Últimas viagens ----
+        List<TripService.Trip> past = TripService.history(this);
+        double totalKm = 0;
+        long totalMs = 0;
+        for (TripService.Trip t : past) {
+            totalKm += t.km;
+            totalMs += t.durationMs;
+        }
+        ((TextView) findViewById(R.id.totals)).setText(past.isEmpty() ? ""
+                : past.size() + (past.size() == 1 ? " viagem · " : " viagens · ")
+                + TripService.formatKm(totalKm) + " · " + TripService.formatDuration(totalMs));
+
+        list.removeAllViews();
+        if (past.isEmpty()) {
+            TextView empty = text("Ainda não há viagens terminadas. Cada vez que o carro fica desligado "
+                    + "mais de 10 minutos, a viagem aparece aqui.", "500", 18, 0xFF9AA0A6);
+            empty.setMaxLines(4);
+            empty.setPadding(6, 8, 6, 0);
+            list.addView(empty);
+            return;
+        }
+        for (TripService.Trip t : past) list.addView(tripRow(t));
+    }
+
+    private LinearLayout tripRow(TripService.Trip trip) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(20, 0, 20, 0);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(20f);
+        bg.setColor(0xFF13161B);
+        bg.setStroke(1, 0xFF22262D);
+        row.setBackground(bg);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 64);
+        lp.bottomMargin = 10;
+        row.setLayoutParams(lp);
+
+        row.addView(text(whenLabel(trip.startMs), "600", 19, 0xFFF2F3F5),
+                new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.6f));
+        String[] values = {
+                TripService.formatKm(trip.km),
+                TripService.formatDuration(trip.durationMs),
+                trip.durationMs > 60000 ? Math.round(trip.avgKmh()) + " km/h" : "—",
+        };
+        int[] colors = {0xFFF2F3F5, 0xFFC9CDD3, 0xFFC9CDD3};
+        for (int i = 0; i < values.length; i++) {
+            TextView t = text(values[i], i == 0 ? "600" : "500", 19, colors[i]);
+            t.setGravity(Gravity.END);
+            row.addView(t, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        }
+        return row;
+    }
+
+    private TextView text(String s, String weight, int sizePx, int color) {
+        TextView t = new TextView(this);
+        t.setText(s);
+        t.setTypeface(Ui.font(this, weight));
+        t.setTextSize(TypedValue.COMPLEX_UNIT_PX, sizePx);
+        t.setTextColor(color);
+        t.setMaxLines(1);
+        return t;
+    }
+
+    /** "Hoje, 08:15", "Ontem, 18:40" ou "seg, 20 out · 09:05". */
+    private static String whenLabel(long ms) {
+        Calendar then = Calendar.getInstance();
+        then.setTimeInMillis(ms);
+        Calendar today = Calendar.getInstance();
+        String time = new SimpleDateFormat("HH:mm", PT).format(new Date(ms));
+        if (sameDay(then, today)) return "Hoje, " + time;
+        today.add(Calendar.DAY_OF_YEAR, -1);
+        if (sameDay(then, today)) return "Ontem, " + time;
+        String day = new SimpleDateFormat("EEE, d MMM", PT).format(new Date(ms)).replace(".", "");
+        return day + " · " + time;
+    }
+
+    private static boolean sameDay(Calendar a, Calendar b) {
+        return a.get(Calendar.YEAR) == b.get(Calendar.YEAR)
+                && a.get(Calendar.DAY_OF_YEAR) == b.get(Calendar.DAY_OF_YEAR);
+    }
+}

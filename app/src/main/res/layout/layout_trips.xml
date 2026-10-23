@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ecrã Carro. Medidas em px num ecrã de 600px de altura; o ScaleFrame ajusta ao ecrã real. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF0B0D10"
+    android:orientation="vertical"
+    android:paddingStart="32px"
+    android:paddingTop="20px"
+    android:paddingEnd="32px"
+    android:paddingBottom="24px">
+
+    <!-- Barra de cima -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56px"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:id="@+id/btn_back"
+            android:layout_width="wrap_content"
+            android:layout_height="52px"
+            android:background="@drawable/pill_bg"
+            android:clickable="true"
+            android:contentDescription="Voltar ao início"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16px"
+            android:paddingEnd="22px">
+
+            <ImageView
+                android:layout_width="22px"
+                android:layout_height="22px"
+                android:importantForAccessibility="no"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_back" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10px"
+                android:tag="w600"
+                android:text="Início"
+                android:textColor="#FFF2F3F5"
+                android:textSize="17px" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="0px"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="22px"
+            android:layout_weight="1"
+            android:tag="w600"
+            android:text="Carro"
+            android:textColor="#FFF2F3F5"
+            android:textSize="30px" />
+
+        <TextView
+            android:id="@+id/btn_new_trip"
+            android:layout_width="wrap_content"
+            android:layout_height="48px"
+            android:background="@drawable/chip_bg"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:paddingStart="18px"
+            android:paddingEnd="18px"
+            android:tag="w600"
+            android:text="Começar nova viagem"
+            android:textColor="#FFC9CDD3"
+            android:textSize="16px" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0px"
+        android:layout_marginTop="16px"
+        android:layout_weight="1"
+        android:orientation="horizontal">
+
+        <!-- Coluna da esquerda: viagem atual + motor -->
+        <LinearLayout
+            android:layout_width="390px"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="0px"
+                android:layout_weight="1"
+                android:background="@drawable/card_bg"
+                android:orientation="vertical"
+                android:paddingStart="28px"
+                android:paddingTop="22px"
+                android:paddingEnd="24px"
+                android:paddingBottom="22px">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0px"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:letterSpacing="0.14"
+                        android:tag="w700 accent_text"
+                        android:text="VIAGEM ATUAL"
+                        android:textSize="14px" />
+
+                    <TextView
+                        android:id="@+id/cur_state"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:letterSpacing="0.12"
+                        android:tag="w700"
+                        android:textColor="#FF9AA0A6"
+                        android:textSize="13px" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="1px"
+                    android:layout_height="0px"
+                    android:layout_weight="1" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/cur_km"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:includeFontPadding="false"
+                        android:tag="w300"
+                        android:text="0"
+                        android:textColor="#FFF2F3F5"
+                        android:textSize="96px" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10px"
+                        android:tag="w500"
+                        android:text="km"
+                        android:textColor="#FF9AA0A6"
+                        android:textSize="28px" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14px"
+                    android:orientation="horizontal">
+
+                    <LinearLayout
+                        android:layout_width="0px"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:letterSpacing="0.14"
+                            android:tag="w700"
+                            android:text="TEMPO"
+                            android:textColor="#FF9AA0A6"
+                            android:textSize="13px" />
+
+                        <TextView
+                            android:id="@+id/cur_time"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:tag="w600"
+                            android:text="—"
+                            android:textColor="#FFF2F3F5"
+                            android:textSize="30px" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0px"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:letterSpacing="0.14"
+                            android:tag="w700"
+                            android:text="MÉDIA"
+                            android:textColor="#FF9AA0A6"
+                            android:textSize="13px" />
+
+                        <TextView
+                            android:id="@+id/cur_avg"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:tag="w600"
+                            android:text="—"
+                            android:textColor="#FFF2F3F5"
+                            android:textSize="30px" />
+                    </LinearLayout>
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/cur_since"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12px"
+                    android:tag="w500"
+                    android:textColor="#FF9AA0A6"
+                    android:textSize="16px" />
+            </LinearLayout>
+
+            <!-- Dados do carro: abre a app CAN do rádio (toque longo para escolher outra) -->
+            <LinearLayout
+                android:id="@+id/car_data_card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14px"
+                android:background="@drawable/card_bg"
+                android:clickable="true"
+                android:focusable="true"
+                android:longClickable="true"
+                android:orientation="vertical"
+                android:paddingStart="28px"
+                android:paddingTop="18px"
+                android:paddingEnd="24px"
+                android:paddingBottom="18px">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.14"
+                    android:tag="w700 accent_text"
+                    android:text="DADOS DO CARRO  ›"
+                    android:textSize="14px" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6px"
+                    android:tag="w500"
+                    android:text="Combustível, temperatura exterior, bateria, km totais, portas…"
+                    android:textColor="#FF9AA0A6"
+                    android:textSize="17px" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Coluna da direita: últimas viagens -->
+        <LinearLayout
+            android:layout_width="0px"
+            android:layout_height="match_parent"
+            android:layout_marginStart="18px"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="6px"
+                android:paddingEnd="6px">
+
+                <TextView
+                    android:layout_width="0px"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:letterSpacing="0.14"
+                    android:tag="w700 accent_text"
+                    android:text="ÚLTIMAS VIAGENS"
+                    android:textSize="14px" />
+
+                <TextView
+                    android:id="@+id/totals"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:tag="w600"
+                    android:textColor="#FFC9CDD3"
+                    android:textSize="16px" />
+            </LinearLayout>
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="0px"
+                android:layout_marginTop="10px"
+                android:layout_weight="1"
+                android:fadingEdgeLength="24px"
+                android:requiresFadingEdge="vertical"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/trips_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </ScrollView>
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>

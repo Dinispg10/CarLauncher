@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ecrã "Rádio a tocar". Medidas em px num ecrã de 600px de altura; o ScaleFrame ajusta ao ecrã real. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF0B0D10"
+    android:orientation="vertical"
+    android:paddingStart="40px"
+    android:paddingTop="20px"
+    android:paddingEnd="40px"
+    android:paddingBottom="20px">
+
+    <!-- Barra de cima -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56px"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:id="@+id/btn_back"
+            android:layout_width="wrap_content"
+            android:layout_height="52px"
+            android:background="@drawable/pill_bg"
+            android:clickable="true"
+            android:contentDescription="Voltar"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16px"
+            android:paddingEnd="22px">
+
+            <ImageView
+                android:layout_width="22px"
+                android:layout_height="22px"
+                android:importantForAccessibility="no"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_back" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10px"
+                android:tag="w600"
+                android:text="Voltar"
+                android:textColor="#FFF2F3F5"
+                android:textSize="17px" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="0px"
+            android:layout_height="1px"
+            android:layout_weight="1" />
+
+        <TextView
+            android:id="@+id/btn_all"
+            android:layout_width="wrap_content"
+            android:layout_height="48px"
+            android:background="@drawable/chip_bg"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:paddingStart="18px"
+            android:paddingEnd="18px"
+            android:tag="w600"
+            android:text="Todas as rádios  ›"
+            android:textColor="#FFC9CDD3"
+            android:textSize="16px" />
+    </LinearLayout>
+
+    <!-- Logótipo + informação -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0px"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/now_logo"
+            android:layout_width="300px"
+            android:layout_height="300px"
+            android:contentDescription="Logótipo da rádio"
+            android:scaleType="centerCrop" />
+
+        <LinearLayout
+            android:layout_width="0px"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="44px"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <View
+                    android:id="@+id/now_dot"
+                    android:layout_width="12px"
+                    android:layout_height="12px"
+                    android:layout_marginEnd="10px" />
+
+                <TextView
+                    android:id="@+id/now_state"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:letterSpacing="0.14"
+                    android:tag="w700 accent_text"
+                    android:text="AO VIVO"
+                    android:textSize="14px" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/now_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6px"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:tag="w600"
+                android:textColor="#FFF2F3F5"
+                android:textSize="56px" />
+
+            <TextView
+                android:id="@+id/now_genre"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:maxLines="1"
+                android:tag="w500"
+                android:textColor="#FF9AA0A6"
+                android:textSize="22px" />
+
+            <pt.meucarro.launcher.EqualizerView
+                android:id="@+id/now_eq"
+                android:layout_width="match_parent"
+                android:layout_height="84px"
+                android:layout_marginTop="18px" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18px"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/now_prev"
+                    android:layout_width="68px"
+                    android:layout_height="68px"
+                    android:background="@drawable/btn_round_bg"
+                    android:clickable="true"
+                    android:contentDescription="Rádio anterior"
+                    android:focusable="true"
+                    android:padding="21px"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_prev" />
+
+                <ImageView
+                    android:id="@+id/now_play"
+                    android:layout_width="88px"
+                    android:layout_height="88px"
+                    android:layout_marginStart="20px"
+                    android:clickable="true"
+                    android:contentDescription="Tocar ou parar"
+                    android:focusable="true"
+                    android:padding="27px"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_pause_dark"
+                    android:tag="accent_bg" />
+
+                <ImageView
+                    android:id="@+id/now_next"
+                    android:layout_width="68px"
+                    android:layout_height="68px"
+                    android:layout_marginStart="20px"
+                    android:background="@drawable/btn_round_bg"
+                    android:clickable="true"
+                    android:contentDescription="Rádio seguinte"
+                    android:focusable="true"
+                    android:padding="21px"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_next" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Fila com todas as rádios: um toque para mudar -->
+    <LinearLayout
+        android:id="@+id/now_strip"
+        android:layout_width="match_parent"
+        android:layout_height="80px"
+        android:gravity="center"
+        android:orientation="horizontal" />
+</LinearLayout>

@@ -1,0 +1,57 @@
+plugins {
+    id 'com.android.application'
+}
+
+// Versão: no GitHub (atualizações automáticas) vem do número da compilação;
+// no Android Studio usa os valores de baixo.
+def ciVersionCode = System.getenv("VERSION_CODE")
+def ciVersionName = System.getenv("VERSION_NAME")
+
+// Repositório do GitHub onde a app procura atualizações ("utilizador/repositório").
+// No GitHub é preenchido sozinho; no Android Studio vem de gradle.properties (updateRepo).
+def updateRepo = System.getenv("GITHUB_REPOSITORY") ?: (project.findProperty("updateRepo") ?: "")
+
+android {
+    namespace 'pt.meucarro.launcher'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'pt.meucarro.launcher'
+        minSdk 24
+        targetSdk 34
+        versionCode ciVersionCode ? ciVersionCode.toInteger() : 29
+        versionName ciVersionName ?: '3.13'
+        buildConfigField "String", "UPDATE_REPO", "\"${updateRepo}\""
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    signingConfigs {
+        // Chave usada no GitHub. Tem de ser a MESMA do APK que está instalado no rádio,
+        // senão o Android recusa a atualização (ver LEIA-ME, secção Atualizações).
+        release {
+            def ks = System.getenv("KEYSTORE_FILE")
+            if (ks) {
+                storeFile file(ks)
+                storePassword System.getenv("KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KEY_ALIAS")
+                keyPassword System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // Sem chave configurada (no Android Studio), assina com a chave de debug
+            signingConfig System.getenv("KEYSTORE_FILE") ? signingConfigs.release : signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

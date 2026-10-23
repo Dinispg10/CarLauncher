@@ -1,0 +1,316 @@
+package pt.meucarro.launcher;
+
+import android.Manifest;
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.Service;
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.Looper;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * Regista a viagem com o GPS, mesmo com outras apps abertas (Waze, Spotify…).
+ * Uma viagem nova começa quando o carro esteve desligado/parado sem GPS mais de 10 minutos.
+ * Também deixa um "sinal de vida" a cada 30 s, para a app saber quando o carro foi ligado.
+ */
+public class TripService extends Service {
+
+    public interface Listener {
+        void onTripChanged();
+    }
+
+    public static final long NEW_TRIP_GAP_MS = 10 * 60 * 1000L;
+    private static final long HEARTBEAT_MS = 30 * 1000L;
+    private static final long SAVE_MS = 15 * 1000L;
+    private static final int NOTIFICATION_ID = 43;
+    private static final String CHANNEL = "trip";
+
+    private static final List<Listener> LISTENERS = new ArrayList<>();
+    private static TripService running;
+
+    public static void addListener(Listener l) {
+        if (!LISTENERS.contains(l)) LISTENERS.add(l);
+    }
+
+    public static void removeListener(Listener l) {
+        LISTENERS.remove(l);
+    }
+
+    public static void start(Context context) {
+        if (context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        Intent intent = new Intent(context, TripService.class);
+        try {
+            if (Build.VERSION.SDK_INT >= 26) context.startForegroundService(intent);
+            else context.startService(intent);
+        } catch (Exception ignored) {
+            // alguns sistemas recusam iniciar serviços em certos momentos; tenta-se no próximo onResume
+        }
+    }
+
+    // ---------- Leitura dos dados (para o ecrã) ----------
+
+    public static final class Trip {
+        public final double km;
+        public final long durationMs;
+        public final long startMs;
+
+        Trip(double km, long durationMs, long startMs) {
+            this.km = km;
+            this.durationMs = durationMs;
+            this.startMs = startMs;
+        }
+
+        public double avgKmh() {
+            return durationMs > 60000 ? km / (durationMs / 3600000.0) : 0;
+        }
+
+        public String summary() {
+            return formatKm(km) + " · " + formatDuration(durationMs) + " · "
+                    + Math.round(avgKmh()) + " km/h";
+        }
+    }
+
+    /** Viagem atual, ou null se ainda não há nenhuma (ou se já acabou). */
+    public static Trip current(Context context) {
+        SharedPreferences p = prefs(context);
+        long start = p.getLong("trip_start", 0);
+        long last = p.getLong("trip_last_time", 0);
+        if (start == 0 || System.currentTimeMillis() - last > NEW_TRIP_GAP_MS) return null;
+        return new Trip(p.getFloat("trip_km", 0f), last - start, start);
+    }
+
+    public static Trip previous(Context context) {
+        SharedPreferences p = prefs(context);
+        long start = p.getLong("prev_start", 0);
+        if (start == 0) return null;
+        return new Trip(p.getFloat("prev_km", 0f), p.getLong("prev_duration", 0), start);
+    }
+
+    /** Começa uma viagem nova (a atual passa a ser a "anterior"). */
+    public static void reset(Context context) {
+        SharedPreferences p = prefs(context);
+        archive(p);
+        p.edit().putLong("trip_start", 0).putFloat("trip_km", 0f).apply();
+        if (running != null) {
+            running.start = 0;
+            running.km = 0;
+            running.lastPoint = null;
+        }
+        notifyListeners();
+    }
+
+    public static String formatKm(double km) {
+        return km < 10 ? String.format(Locale.forLanguageTag("pt-PT"), "%.1f km", km)
+                : Math.round(km) + " km";
+    }
+
+    public static String formatDuration(long ms) {
+        long min = ms / 60000;
+        return min < 60 ? min + " min" : (min / 60) + " h " + String.format(Locale.ROOT, "%02d", min % 60);
+    }
+
+    // ---------- Serviço ----------
+
+    private final Handler main = new Handler(Looper.getMainLooper());
+    private LocationManager locationManager;
+    private SharedPreferences p;
+    private Location lastPoint;
+    private long lastSave;
+    private double km;
+    private long start;
+    private long lastTime;
+
+    private final Runnable heartbeat = new Runnable() {
+        @Override
+        public void run() {
+            p.edit().putLong("heartbeat", System.currentTimeMillis()).apply();
+            main.postDelayed(this, HEARTBEAT_MS);
+        }
+    };
+
+    private final LocationListener listener = new LocationListener() {
+        @Override
+        public void onLocationChanged(Location location) {
+            onFix(location);
+        }
+
+        @Override
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+        }
+
+        @Override
+        public void onProviderEnabled(String provider) {
+        }
+
+        @Override
+        public void onProviderDisabled(String provider) {
+        }
+    };
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        running = this;
+        p = prefs(this);
+        locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        start = p.getLong("trip_start", 0);
+        km = p.getFloat("trip_km", 0f);
+        lastTime = p.getLong("trip_last_time", 0);
+        if (Build.VERSION.SDK_INT >= 26) {
+            NotificationChannel channel = new NotificationChannel(CHANNEL, "Viagem", NotificationManager.IMPORTANCE_MIN);
+            channel.setShowBadge(false);
+            ((NotificationManager) getSystemService(NOTIFICATION_SERVICE)).createNotificationChannel(channel);
+        }
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        Notification.Builder builder = Build.VERSION.SDK_INT >= 26
+                ? new Notification.Builder(this, CHANNEL)
+                : new Notification.Builder(this);
+        Notification notification = builder
+                .setSmallIcon(R.drawable.ic_maps)
+                .setContentTitle("Launcher do Carro")
+                .setContentText("A registar a viagem")
+                .setOngoing(true)
+                .build();
+        startForeground(NOTIFICATION_ID, notification);
+
+        main.removeCallbacks(heartbeat);
+        main.post(heartbeat);
+        try {
+            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, listener);
+        } catch (SecurityException | IllegalArgumentException e) {
+            stopSelf(); // sem GPS ou sem autorização
+        }
+        return START_STICKY;
+    }
+
+    @Override
+    public void onDestroy() {
+        main.removeCallbacks(heartbeat);
+        try {
+            locationManager.removeUpdates(listener);
+        } catch (Exception ignored) {
+        }
+        save();
+        if (running == this) running = null;
+        super.onDestroy();
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        return null;
+    }
+
+    private void onFix(Location location) {
+        long now = System.currentTimeMillis();
+        if (location.hasAccuracy() && location.getAccuracy() > 35f) return; // ponto pouco preciso
+
+        // Esteve muito tempo sem GPS (carro desligado): fecha a viagem e começa outra
+        if (start == 0 || now - lastTime > NEW_TRIP_GAP_MS) {
+            if (start != 0) {
+                save();
+                archive(p);
+            }
+            start = now;
+            km = 0;
+            lastPoint = null;
+        }
+        if (lastPoint != null) {
+            float meters = lastPoint.distanceTo(location);
+            float speed = location.hasSpeed() ? location.getSpeed() : 0f;
+            // Só conta movimento real: ignora o "tremer" do GPS com o carro parado
+            if (speed > 1.0f && meters < 500f) km += meters / 1000.0;
+        }
+        lastPoint = location;
+        lastTime = now;
+        if (now - lastSave > SAVE_MS) save();
+        notifyListeners();
+    }
+
+    private void save() {
+        if (p == null || start == 0) return;
+        p.edit().putLong("trip_start", start)
+                .putFloat("trip_km", (float) km)
+                .putLong("trip_last_time", lastTime)
+                .apply();
+        lastSave = System.currentTimeMillis();
+    }
+
+    /** Guarda a viagem atual como "anterior" (só se tiver andado alguma coisa). */
+    private static final int HISTORY_SIZE = 10;
+
+    private static void archive(SharedPreferences p) {
+        long start = p.getLong("trip_start", 0);
+        float tripKm = p.getFloat("trip_km", 0f);
+        if (start == 0 || tripKm < 0.2f) return;
+        long duration = p.getLong("trip_last_time", start) - start;
+        // Junta ao histórico (mais recente primeiro, no máximo 10)
+        JSONArray next = new JSONArray();
+        try {
+            JSONObject entry = new JSONObject();
+            entry.put("s", start);
+            entry.put("km", (double) tripKm);
+            entry.put("d", duration);
+            next.put(entry);
+            JSONArray old = new JSONArray(p.getString("trip_history", "[]"));
+            for (int i = 0; i < old.length() && next.length() < HISTORY_SIZE; i++) {
+                JSONObject o = old.getJSONObject(i);
+                if (o.optLong("s") != start) next.put(o);
+            }
+        } catch (Exception ignored) {
+        }
+        p.edit().putLong("prev_start", start)
+                .putFloat("prev_km", tripKm)
+                .putLong("prev_duration", duration)
+                .putString("trip_history", next.toString())
+                .apply();
+    }
+
+    /** Últimas viagens terminadas, da mais recente para a mais antiga. */
+    public static List<Trip> history(Context context) {
+        List<Trip> out = new ArrayList<>();
+        try {
+            JSONArray arr = new JSONArray(prefs(context).getString("trip_history", "[]"));
+            for (int i = 0; i < arr.length(); i++) {
+                JSONObject o = arr.getJSONObject(i);
+                out.add(new Trip(o.optDouble("km", 0), o.optLong("d", 0), o.optLong("s", 0)));
+            }
+        } catch (Exception ignored) {
+        }
+        return out;
+    }
+
+    public static void clearHistory(Context context) {
+        prefs(context).edit().remove("trip_history").remove("prev_start").apply();
+        notifyListeners();
+    }
+
+    private static void notifyListeners() {
+        for (Listener l : new ArrayList<>(LISTENERS)) l.onTripChanged();
+    }
+
+    private static SharedPreferences prefs(Context context) {
+        return context.getSharedPreferences("launcher", Context.MODE_PRIVATE);
+    }
+}

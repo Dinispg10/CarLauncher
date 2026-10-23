@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ecrã Rádio online. Medidas em px num ecrã de 600px de altura; o ScaleFrame ajusta ao ecrã real. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF0B0D10"
+    android:orientation="vertical"
+    android:paddingStart="32px"
+    android:paddingTop="20px"
+    android:paddingEnd="32px"
+    android:paddingBottom="24px">
+
+    <!-- Barra de cima -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56px"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:id="@+id/btn_back"
+            android:layout_width="wrap_content"
+            android:layout_height="52px"
+            android:background="@drawable/pill_bg"
+            android:clickable="true"
+            android:contentDescription="Voltar ao início"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="16px"
+            android:paddingEnd="22px">
+
+            <ImageView
+                android:layout_width="22px"
+                android:layout_height="22px"
+                android:importantForAccessibility="no"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_back" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10px"
+                android:tag="w600"
+                android:text="Início"
+                android:textColor="#FFF2F3F5"
+                android:textSize="17px" />
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="0px"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="22px"
+            android:layout_weight="1"
+            android:tag="w600"
+            android:text="Rádio online"
+            android:textColor="#FFF2F3F5"
+            android:textSize="30px" />
+
+    </LinearLayout>
+
+    <!-- As 8 rádios (criadas no código) -->
+    <LinearLayout
+        android:id="@+id/radio_grid"
+        android:layout_width="match_parent"
+        android:layout_height="0px"
+        android:layout_marginTop="18px"
+        android:layout_weight="1"
+        android:orientation="vertical" />
+
+    <!-- Barra de controlo -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="84px"
+        android:layout_marginTop="18px"
+        android:background="@drawable/card_bg"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="24px"
+        android:paddingEnd="12px">
+
+        <LinearLayout
+            android:layout_width="0px"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/radio_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:letterSpacing="0.14"
+                android:tag="w700 accent_text"
+                android:text="RÁDIO ONLINE"
+                android:textSize="14px" />
+
+            <TextView
+                android:id="@+id/radio_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:tag="w600"
+                android:text="Escolha uma rádio"
+                android:textColor="#FFF2F3F5"
+                android:textSize="26px" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/radio_prev"
+            android:layout_width="60px"
+            android:layout_height="60px"
+            android:background="@drawable/btn_round_bg"
+            android:clickable="true"
+            android:contentDescription="Rádio anterior"
+            android:focusable="true"
+            android:padding="18px"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_prev" />
+
+        <ImageView
+            android:id="@+id/radio_play"
+            android:layout_width="64px"
+            android:layout_height="64px"
+            android:layout_marginStart="14px"
+            android:clickable="true"
+            android:contentDescription="Tocar ou parar"
+            android:focusable="true"
+            android:padding="20px"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_play_dark"
+            android:tag="accent_bg" />
+
+        <ImageView
+            android:id="@+id/radio_next"
+            android:layout_width="60px"
+            android:layout_height="60px"
+            android:layout_marginStart="14px"
+            android:background="@drawable/btn_round_bg"
+            android:clickable="true"
+            android:contentDescription="Rádio seguinte"
+            android:focusable="true"
+            android:padding="18px"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_next" />
+    </LinearLayout>
+</LinearLayout>

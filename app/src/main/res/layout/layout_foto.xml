@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Layout B · Foto em destaque. Medidas em px num ecrã de 600px de altura; o ScaleFrame ajusta ao ecrã real. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/photo_area"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FF101318"
+    android:longClickable="true">
+
+    <ImageView
+        android:id="@+id/car_photo"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="Foto do carro"
+        android:scaleType="centerCrop"
+        android:visibility="gone" />
+
+    <!-- Escurece a esquerda para o relógio se ler bem por cima da foto -->
+    <View
+        android:id="@+id/scrim"
+        android:layout_width="560px"
+        android:layout_height="match_parent"
+        android:background="@drawable/scrim_left"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/photo_placeholder"
+        android:layout_width="640px"
+        android:layout_height="match_parent"
+        android:layout_gravity="end"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingBottom="90px">
+
+        <ImageView
+            android:layout_width="380px"
+            android:layout_height="158px"
+            android:importantForAccessibility="no"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_car_outline" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16px"
+            android:tag="w500"
+            android:text="Toque longo no fundo para escolher a foto do carro"
+            android:textColor="#FF9AA0A6"
+            android:textSize="17px" />
+    </LinearLayout>
+
+    <!-- Relógio, data e velocidade -->
+    <LinearLayout
+        android:id="@+id/clock_card"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="44px"
+        android:layout_marginTop="36px"
+        android:longClickable="true"
+        android:orientation="vertical">
+
+        <TextClock
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:format12Hour="HH:mm"
+            android:format24Hour="HH:mm"
+            android:includeFontPadding="false"
+            android:letterSpacing="-0.01"
+            android:maxLines="1"
+            android:shadowColor="#80000000"
+            android:shadowRadius="16"
+            android:tag="w200"
+            android:textColor="#FFF2F3F5"
+            android:textSize="153px" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10px"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextClock
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:format12Hour="EEEE, d 'de' MMMM"
+                android:format24Hour="EEEE, d 'de' MMMM"
+                android:maxLines="1"
+                android:shadowColor="#80000000"
+                android:shadowRadius="10"
+                android:tag="w500"
+                android:textColor="#FFC9CDD3"
+                android:textSize="21px" />
+
+            <!-- Tempo: aparece quando há internet e localização -->
+            <LinearLayout
+                android:id="@+id/weather_row"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16px"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/weather_icon"
+                    android:layout_width="27px"
+                    android:layout_height="27px"
+                    android:importantForAccessibility="no"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/ic_w_sun" />
+
+                <TextView
+                    android:id="@+id/weather_temp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6px"
+                android:shadowColor="#80000000"
+                android:shadowRadius="10"
+                    android:tag="w600"
+                    android:textColor="#FFF2F3F5"
+                    android:textSize="21px" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22px"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/speed"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:letterSpacing="0"
+                android:shadowColor="#80000000"
+                android:shadowRadius="10"
+                android:tag="w300"
+                android:text="--"
+                android:textColor="#FFF2F3F5"
+                android:textSize="51px" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8px"
+                android:shadowColor="#80000000"
+                android:shadowRadius="8"
+                android:tag="w500"
+                android:text="km/h"
+                android:textColor="#FFB4B9C0"
+                android:textSize="17px" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- Barra flutuante -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="92px"
+        android:layout_gravity="bottom"
+        android:layout_marginStart="20px"
+        android:layout_marginEnd="20px"
+        android:layout_marginBottom="20px"
+        android:background="@drawable/bar_bg"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="14px"
+        android:paddingEnd="14px">
+
+        <!-- Capa pequena: toque abre o ecrã "A tocar" -->
+        <FrameLayout
+            android:id="@+id/media_art_box"
+            android:layout_width="64px"
+            android:layout_height="64px"
+            android:background="@drawable/art_small_bg"
+            android:clickable="true"
+            android:contentDescription="Abrir o ecrã A tocar"
+            android:focusable="true">
+
+            <ImageView
+                android:id="@+id/media_art_placeholder"
+                android:layout_width="26px"
+                android:layout_height="26px"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                android:scaleType="fitCenter"
+                android:src="@drawable/ic_music"
+                android:tag="accent_tint" />
+
+            <ImageView
+                android:id="@+id/media_art"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:importantForAccessibility="no"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:id="@+id/media_card"
+            android:layout_width="150px"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14px"
+            android:clickable="true"
+            android:focusable="true"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/media_label"
+                android:letterSpacing="0.14"
+                android:tag="w700 accent_text"
+                android:text="MULTIMÉDIA"
+                android:textSize="13px" />
+
+            <TextView
+                android:id="@+id/media_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="3px"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:tag="w600"
+                android:text="Música"
+                android:textColor="#FFF2F3F5"
+                android:textSize="23px" />
+        </LinearLayout>
+
+        <ImageView
+            android:id="@+id/btn_prev"
+            android:layout_width="48px"
+            android:layout_height="48px"
+            android:background="@drawable/btn_ghost_bg"
+            android:clickable="true"
+            android:contentDescription="Anterior"
+            android:focusable="true"
+            android:padding="14px"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_prev" />
+
+        <ImageView
+            android:id="@+id/btn_play"
+            android:layout_width="56px"
+            android:layout_height="56px"
+            android:layout_marginStart="4px"
+            android:clickable="true"
+            android:contentDescription="Reproduzir ou pausar"
+            android:focusable="true"
+            android:padding="17px"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_play_dark"
+            android:tag="accent_bg_sq" />
+
+        <ImageView
+            android:id="@+id/btn_next"
+            android:layout_width="48px"
+            android:layout_height="48px"
+            android:layout_marginStart="6px"
+            android:background="@drawable/btn_ghost_bg"
+            android:clickable="true"
+            android:contentDescription="Seguinte"
+            android:focusable="true"
+            android:padding="14px"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_next" />
+
+        <View
+            android:layout_width="1px"
+            android:layout_height="64px"
+            android:layout_marginStart="12px"
+            android:layout_marginEnd="10px"
+            android:background="#14FFFFFF" />
+
+        <ImageView
+            android:id="@+id/dock_maps"
+            style="@style/FotoDockIcon"
+            android:contentDescription="Mapas"
+            android:src="@drawable/ic_maps" />
+
+        <ImageView
+            android:id="@+id/dock_music"
+            style="@style/FotoDockIcon"
+            android:contentDescription="Música"
+            android:src="@drawable/ic_music" />
+
+        <ImageView
+            android:id="@+id/dock_radio"
+            style="@style/FotoDockIcon"
+            android:contentDescription="Rádio"
+            android:src="@drawable/ic_radio" />
+
+        <ImageView
+            android:id="@+id/dock_phone"
+            style="@style/FotoDockIcon"
+            android:contentDescription="Telefone"
+            android:src="@drawable/ic_phone" />
+
+        <ImageView
+            android:id="@+id/dock_car"
+            style="@style/FotoDockIcon"
+            android:contentDescription="Carro"
+            android:src="@drawable/ic_car" />
+
+        <ImageView
+            android:id="@+id/dock_apps"
+            style="@style/FotoDockIcon"
+            android:contentDescription="Apps"
+            android:src="@drawable/ic_apps" />
+    </LinearLayout>
+</FrameLayout>

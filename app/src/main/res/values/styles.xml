@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@drawable/window_bg</item>
+        <item name="android:statusBarColor">#FF0B0D10</item>
+        <item name="android:navigationBarColor">#FF0B0D10</item>
+        <item name="android:colorAccent">#FF5EEAD4</item>
+        <item name="android:windowShowWallpaper">false</item>
+    </style>
+
+    <!-- Botões da barra inferior (layout Painel) -->
+    <style name="DockButton">
+        <item name="android:layout_width">0px</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:gravity">center</item>
+        <item name="android:background">@drawable/dock_bg</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:longClickable">true</item>
+    </style>
+
+    <style name="DockIcon">
+        <item name="android:layout_width">30px</item>
+        <item name="android:layout_height">30px</item>
+        <item name="android:scaleType">fitCenter</item>
+        <item name="android:importantForAccessibility">no</item>
+    </style>
+
+    <style name="DockLabel">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">9px</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:tag">w600</item>
+        <item name="android:textColor">#FFC9CDD3</item>
+        <item name="android:textSize">15px</item>
+    </style>
+
+    <!-- Ecrã Viagens: cartões dos totais -->
+    <style name="TripStat">
+        <item name="android:layout_width">0px</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:background">@drawable/card_bg</item>
+        <item name="android:paddingStart">20px</item>
+        <item name="android:paddingEnd">12px</item>
+    </style>
+
+    <style name="TripStatLabel">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:letterSpacing">0.14</item>
+        <item name="android:tag">w700 accent_text</item>
+        <item name="android:textSize">13px</item>
+    </style>
+
+    <style name="TripStatValue">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">2px</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:tag">w600</item>
+        <item name="android:text">—</item>
+        <item name="android:textColor">#FFF2F3F5</item>
+        <item name="android:textSize">32px</item>
+    </style>
+
+    <!-- Ícones da barra flutuante (layout Foto) -->
+    <style name="FotoDockIcon">
+        <item name="android:layout_width">0px</item>
+        <item name="android:layout_height">64px</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_marginStart">6px</item>
+        <item name="android:padding">18px</item>
+        <item name="android:scaleType">fitCenter</item>
+        <item name="android:background">@drawable/btn_ghost_bg</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:longClickable">true</item>
+    </style>
+</resources>
