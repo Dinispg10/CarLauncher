@@ -166,6 +166,8 @@ public class SppTestActivity extends Activity {
         } catch (Exception ignored) {
         }
         renderList();
+        add("Nome Bluetooth do rádio: \"" + adapter.getName() + "\" · visível para outros: "
+                + (adapter.getScanMode() == BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE ? "sim" : "não"));
         add("Aparelhos já emparelhados à esquerda. Se o PC não estiver, carregue em \"Procurar aparelhos\".");
     }
 
@@ -276,16 +278,49 @@ public class SppTestActivity extends Activity {
 
     /** Deixa o PC encontrar o rádio durante 2 minutos (para emparelhar a partir do PC). */
     private void makeVisible() {
+        // 1) Forma normal: o Android pergunta "permitir que fique visível?"
         try {
             Intent i = new Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE);
             i.putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 120);
             startActivity(i);
-            add("Rádio visível durante 2 minutos com o nome \"" + adapter.getName() + "\". No PC: Definições → "
-                    + "Bluetooth → Adicionar dispositivo → Bluetooth → escolha o rádio e confirme o código. "
-                    + "Depois volte aqui, carregue em \"Procurar aparelhos\" e toque no PC.");
-        } catch (Exception e) {
-            add("✗ O rádio não deixou ficar visível: " + e.getMessage());
+            visibleHelp();
+            return;
+        } catch (Exception ignored) {
         }
+        // 2) Este rádio não tem esse ecrã: liga a visibilidade diretamente
+        boolean ok = false;
+        try {
+            Method m = BluetoothAdapter.class.getMethod("setScanMode", int.class, int.class);
+            ok = Boolean.TRUE.equals(m.invoke(adapter, BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE, 300));
+        } catch (Exception ignored) {
+        }
+        if (!ok) {
+            try {
+                Method t = BluetoothAdapter.class.getMethod("setDiscoverableTimeout", int.class);
+                t.invoke(adapter, 300);
+            } catch (Exception ignored) {
+            }
+            try {
+                Method m = BluetoothAdapter.class.getMethod("setScanMode", int.class);
+                ok = Boolean.TRUE.equals(m.invoke(adapter, BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE));
+            } catch (Exception ignored) {
+            }
+        }
+        main.postDelayed(() -> {
+            if (adapter.getScanMode() == BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE) {
+                visibleHelp();
+            } else {
+                add("✗ O rádio não deixou ficar visível. Veja na app de Bluetooth do rádio (botão BT) → "
+                        + "definições se há uma opção \"visível\"/\"detetável\". O nome do rádio é \""
+                        + adapter.getName() + "\".");
+            }
+        }, 800);
+    }
+
+    private void visibleHelp() {
+        add("✓ Rádio visível durante uns minutos com o nome \"" + adapter.getName() + "\". No PC: Adicionar "
+                + "dispositivo → Bluetooth → escolha \"" + adapter.getName() + "\" e confirme o código nos dois. "
+                + "Depois volte aqui, carregue em \"Procurar aparelhos\" e toque no PC.");
     }
 
     // ---------- Ligação por porta série (igual à do adaptador) ----------
