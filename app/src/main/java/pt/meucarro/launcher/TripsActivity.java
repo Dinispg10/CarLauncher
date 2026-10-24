@@ -43,6 +43,10 @@ public class TripsActivity extends Activity implements TripService.Listener, Obd
             chooseCarApp();
             return true;
         });
+        findViewById(R.id.cur_card).setOnClickListener(v -> {
+            TripService.Trip cur = TripService.current(this);
+            if (cur != null) openRoute(cur.startMs);
+        });
         findViewById(R.id.engine_card).setOnClickListener(v ->
                 startActivity(new android.content.Intent(this, EngineActivity.class)));
         findViewById(R.id.btn_back).setOnClickListener(v -> finish());
@@ -212,6 +216,7 @@ public class TripsActivity extends Activity implements TripService.Listener, Obd
         bg.setColor(0xFF13161B);
         bg.setStroke(1, 0xFF22262D);
         row.setBackground(bg);
+        row.setOnClickListener(v -> openRoute(trip.startMs));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 64);
         lp.bottomMargin = 10;
         row.setLayoutParams(lp);
@@ -231,6 +236,11 @@ public class TripsActivity extends Activity implements TripService.Listener, Obd
             row.addView(t, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         }
         return row;
+    }
+
+    private void openRoute(long tripStart) {
+        startActivity(new android.content.Intent(this, TripRouteActivity.class)
+                .putExtra(TripRouteActivity.EXTRA_START, tripStart));
     }
 
     private TextView text(String s, String weight, int sizePx, int color) {

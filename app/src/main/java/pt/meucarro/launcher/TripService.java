@@ -21,6 +21,7 @@ import android.os.Looper;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -129,6 +130,7 @@ public class TripService extends Service {
     /** Começa uma viagem nova (a atual passa a ser a "anterior"). */
     public static void reset(Context context) {
         SharedPreferences p = prefs(context);
+        if (running != null) running.save();
         archive(context, p);
         p.edit().putLong("trip_start", 0).putFloat("trip_km", 0f).apply();
         markObdStart(context, p);
@@ -136,6 +138,8 @@ public class TripService extends Service {
             running.start = 0;
             running.km = 0;
             running.lastPoint = null;
+            running.route.clear();
+            running.lastRoutePoint = null;
         }
         notifyListeners();
     }
@@ -160,6 +164,9 @@ public class TripService extends Service {
     private double km;
     private long start;
     private long lastTime;
+    /** Percurso da viagem atual: {lat×1e5, lon×1e5, km/h}. */
+    private final List<int[]> route = new ArrayList<>();
+    private Location lastRoutePoint;
 
     private final Runnable heartbeat = new Runnable() {
         @Override
@@ -197,6 +204,7 @@ public class TripService extends Service {
         start = p.getLong("trip_start", 0);
         km = p.getFloat("trip_km", 0f);
         lastTime = p.getLong("trip_last_time", 0);
+        if (start != 0) route.addAll(readRoute(currentRouteFile(this)));
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationChannel channel = new NotificationChannel(CHANNEL, "Viagem", NotificationManager.IMPORTANCE_MIN);
             channel.setShowBadge(false);
@@ -258,12 +266,22 @@ public class TripService extends Service {
             start = now;
             km = 0;
             lastPoint = null;
+            route.clear();
+            lastRoutePoint = null;
         }
         if (lastPoint != null) {
             float meters = lastPoint.distanceTo(location);
             float speed = location.hasSpeed() ? location.getSpeed() : 0f;
             // Só conta movimento real: ignora o "tremer" do GPS com o carro parado
             if (speed > 1.0f && meters < 500f) km += meters / 1000.0;
+        }
+        // Percurso: um ponto a cada ~20 m (máximo 6000 pontos por viagem)
+        float kmh = location.hasSpeed() ? location.getSpeed() * 3.6f : 0f;
+        if (route.size() < 6000 && (lastRoutePoint == null
+                || (kmh > 3 && lastRoutePoint.distanceTo(location) >= 20f))) {
+            route.add(new int[]{(int) Math.round(location.getLatitude() * 1e5),
+                    (int) Math.round(location.getLongitude() * 1e5), Math.round(kmh)});
+            lastRoutePoint = location;
         }
         lastPoint = location;
         lastTime = now;
@@ -277,6 +295,7 @@ public class TripService extends Service {
                 .putFloat("trip_km", (float) km)
                 .putLong("trip_last_time", lastTime)
                 .apply();
+        writeRoute(currentRouteFile(this), route);
         lastSave = System.currentTimeMillis();
     }
 
@@ -305,11 +324,64 @@ public class TripService extends Service {
             }
         } catch (Exception ignored) {
         }
+        // Guarda o percurso com o início da viagem e apaga os de viagens que já saíram da lista
+        try {
+            File dir = new File(c.getFilesDir(), "routes");
+            //noinspection ResultOfMethodCallIgnored
+            dir.mkdirs();
+            File cur = currentRouteFile(c);
+            if (cur.exists()) //noinspection ResultOfMethodCallIgnored
+                cur.renameTo(new File(dir, start + ".txt"));
+            java.util.Set<String> keep = new java.util.HashSet<>();
+            for (int i = 0; i < next.length(); i++) keep.add(next.getJSONObject(i).optLong("s") + ".txt");
+            File[] files = dir.listFiles();
+            if (files != null) for (File f : files) if (!keep.contains(f.getName())) //noinspection ResultOfMethodCallIgnored
+                f.delete();
+        } catch (Exception ignored) {
+        }
         p.edit().putLong("prev_start", start)
                 .putFloat("prev_km", tripKm)
                 .putLong("prev_duration", duration)
                 .putString("trip_history", next.toString())
                 .apply();
+    }
+
+    // ---------- Percursos ----------
+
+    private static File currentRouteFile(Context c) {
+        return new File(c.getFilesDir(), "route_current.txt");
+    }
+
+    /** Percurso de uma viagem (a atual ou uma das últimas), ou lista vazia. */
+    public static List<int[]> route(Context c, long tripStart) {
+        if (running != null && running.start == tripStart) return new ArrayList<>(running.route);
+        File f = new File(new File(c.getFilesDir(), "routes"), tripStart + ".txt");
+        if (!f.exists() && prefs(c).getLong("trip_start", 0) == tripStart) f = currentRouteFile(c);
+        return readRoute(f);
+    }
+
+    private static void writeRoute(File f, List<int[]> pts) {
+        StringBuilder sb = new StringBuilder(pts.size() * 20);
+        for (int[] pt : pts) sb.append(pt[0]).append(',').append(pt[1]).append(',').append(pt[2]).append('\n');
+        try (java.io.FileOutputStream out = new java.io.FileOutputStream(f)) {
+            out.write(sb.toString().getBytes("US-ASCII"));
+        } catch (Exception ignored) {
+        }
+    }
+
+    private static List<int[]> readRoute(File f) {
+        List<int[]> out = new ArrayList<>();
+        if (!f.exists()) return out;
+        try (java.io.BufferedReader r = new java.io.BufferedReader(new java.io.FileReader(f))) {
+            String line;
+            while ((line = r.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length < 3) continue;
+                out.add(new int[]{Integer.parseInt(parts[0]), Integer.parseInt(parts[1]), Integer.parseInt(parts[2])});
+            }
+        } catch (Exception ignored) {
+        }
+        return out;
     }
 
     /** Últimas viagens terminadas, da mais recente para a mais antiga. */
@@ -330,6 +402,9 @@ public class TripService extends Service {
 
     public static void clearHistory(Context context) {
         prefs(context).edit().remove("trip_history").remove("prev_start").apply();
+        File[] files = new File(context.getFilesDir(), "routes").listFiles();
+        if (files != null) for (File f : files) //noinspection ResultOfMethodCallIgnored
+            f.delete();
         notifyListeners();
     }
 

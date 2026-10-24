@@ -47,6 +47,7 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
     private static final String[] ACCENT_NAMES = {"Verde-água", "Azul", "Laranja", "Branco"};
 
     private static final int REQ_PHOTO = 1;
+    private static final int REQ_SOUND = 9;
     private static final int REQ_LOCATION = 2;
     private static final String PHOTO_FILE = "car_photo";
     public static final String EXTRA_OPEN_SETTINGS = "open_settings";
@@ -125,7 +126,7 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
         buildUi();
         if (coldStart) {
             coldStart = false;
-            showSplashIfEnabled();
+            carStarted();
             // Vê se há versão nova no GitHub (no máximo de 6 em 6 horas), depois da animação
             new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
                 if (!isFinishing()) Updater.autoCheck(this);
@@ -163,7 +164,7 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
         if (heartbeat > 0 && System.currentTimeMillis() - heartbeat > 5 * 60 * 1000L
                 && checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             prefs.edit().putLong("heartbeat", System.currentTimeMillis()).apply();
-            showSplashIfEnabled();
+            carStarted();
         }
         TripService.start(this);
         TripService.addListener(this);
@@ -470,7 +471,9 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
                 }, true, this::editDriverName)
                 .item("Animação de arranque", () -> onOff("show_splash", true), false,
                         () -> toggle("show_splash", true))
+                .item("Som de arranque", () -> StartSound.name(StartSound.choice(this)), true, this::chooseStartSound)
                 .item("Ver a animação de arranque agora", () -> {
+                    StartSound.play(this);
                     Splash.show(this, carBitmap);
                     Night.apply(this, Night.isNight(this));
                 })
@@ -594,6 +597,45 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
         sheet.button("Cancelar", false, null).show();
     }
 
+    // ---------- Som de arranque ----------
+
+    private void chooseStartSound() {
+        Sheet sheet = Sheet.create(this, "Som de arranque")
+                .message("Toca quando o carro liga, com a animação. Toque num som para o ouvir e escolher.");
+        for (int i = 0; i < StartSound.IDS.length; i++) {
+            final String id = StartSound.IDS[i];
+            if (id.equals("custom")) {
+                boolean has = new File(getFilesDir(), StartSound.CUSTOM_FILE).exists();
+                sheet.item(has ? "O meu som" : "O meu som (escolher ficheiro…)",
+                        () -> id.equals(StartSound.choice(this)) ? "Em uso" : (has ? "Trocar…" : null), false, () -> {
+                            if (has && !id.equals(StartSound.choice(this))) {
+                                StartSound.setChoice(this, id);
+                                StartSound.play(this, id);
+                            } else {
+                                pickStartSound();
+                            }
+                        });
+            } else {
+                sheet.item(StartSound.NAMES[i], () -> id.equals(StartSound.choice(this)) ? "Em uso" : null, false, () -> {
+                    StartSound.setChoice(this, id);
+                    StartSound.play(this, id);
+                });
+            }
+        }
+        sheet.button("OK", true, null).show();
+    }
+
+    private void pickStartSound() {
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("audio/*");
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        try {
+            startActivityForResult(Intent.createChooser(intent, "Escolher o som de arranque"), REQ_SOUND);
+        } catch (Exception e) {
+            Toast.makeText(this, "Não encontrei nenhuma app de ficheiros", Toast.LENGTH_LONG).show();
+        }
+    }
+
     // ---------- Foto do carro ----------
 
     private void pickPhoto() {
@@ -610,6 +652,21 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQ_SOUND && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            final Uri sound = data.getData();
+            new Thread(() -> {
+                boolean ok = copyToFile(sound, new File(getFilesDir(), StartSound.CUSTOM_FILE));
+                runOnUiThread(() -> {
+                    if (ok) {
+                        StartSound.setChoice(this, "custom");
+                        StartSound.play(this, "custom");
+                    } else {
+                        Toast.makeText(this, "Não consegui ler esse som", Toast.LENGTH_LONG).show();
+                    }
+                });
+            }).start();
+            return;
+        }
         if (requestCode != REQ_PHOTO || resultCode != RESULT_OK || data == null || data.getData() == null) return;
         final Uri uri = data.getData();
         new Thread(() -> {
@@ -774,6 +831,12 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
     }
 
     // ---------- Animação de arranque ----------
+
+    /** O carro acabou de ligar: som de arranque + animação. */
+    private void carStarted() {
+        StartSound.play(this);
+        showSplashIfEnabled();
+    }
 
     private void showSplashIfEnabled() {
         if (!prefs.getBoolean("show_splash", true)) return;
