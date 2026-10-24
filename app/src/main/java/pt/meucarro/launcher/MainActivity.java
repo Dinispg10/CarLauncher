@@ -488,7 +488,7 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
                 .section("Carro")
                 .item("Adaptador OBD2 (motor)", () -> Obd.savedMac(this) == null ? "Por ligar" : Obd.savedName(this),
                         true, () -> startActivity(new Intent(this, EngineActivity.class)))
-                .item("Enviar a app do carro para o PC", this::shareCarApps)
+                .item("Ligar o rádio ao PC (ficheiros)", this::shareCarApps)
                 .section("Sistema")
                 .item("Procurar atualizações", Updater::currentVersion, true, () -> Updater.check(this, false))
                 .item("Definições do Android", () -> {
@@ -504,18 +504,23 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
 
     /** Mostra um endereço para descarregar as apps do carro no PC (mesma rede Wi-Fi). Só lê. */
     private void shareCarApps() {
+        ApkShare.onReceived = what -> {
+            if (what.equals("photo")) showPhoto();
+            Toast.makeText(this, what.equals("photo") ? "Foto nova recebida do PC" : "Som de arranque recebido do PC",
+                    Toast.LENGTH_LONG).show();
+        };
         String url = ApkShare.start(this);
         if (url == null) {
-            Sheet.message(this, "Enviar para o PC",
+            Sheet.message(this, "Ligar o rádio ao PC",
                     "O rádio não está ligado a nenhuma rede Wi-Fi. Ligue o hotspot do telemóvel e tente outra vez.");
             return;
         }
-        Sheet.create(this, "Enviar para o PC").width(860)
-                .message("1) Ligue o PC à MESMA rede Wi-Fi do rádio (o hotspot do telemóvel).\n\n"
-                        + "2) No PC, abra o Chrome/Edge e escreva este endereço:\n\n      " + url + "\n\n"
-                        + "3) Descarregue os ficheiros da lista e anexe-os na conversa com o Claude.\n\n"
-                        + "Isto só lê as apps; não muda nada no rádio nem no carro. "
-                        + "Desliga-se sozinho daqui a 15 minutos.")
+        Sheet.create(this, "Ligar o rádio ao PC").width(860)
+                .message("1) Ligue o PC (ou o telemóvel) à MESMA rede Wi-Fi do rádio (o hotspot do telemóvel).\n\n"
+                        + "2) No browser, escreva este endereço:\n\n      " + url + "\n\n"
+                        + "3) Na página pode enviar um som de arranque ou uma foto do carro para o rádio, "
+                        + "e descarregar ficheiros para o Claude analisar.\n\n"
+                        + "Não muda nada no carro. Desliga-se sozinho daqui a 15 minutos.")
                 .button("Parar", false, ApkShare::stop)
                 .button("OK", true, null)
                 .show();

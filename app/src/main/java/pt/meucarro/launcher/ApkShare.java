@@ -8,11 +8,9 @@ import android.content.pm.PackageManager;
 import android.content.pm.PermissionInfo;
 import android.content.pm.ProviderInfo;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -92,18 +90,34 @@ public final class ApkShare {
         }
     }
 
+    /** Chamado (no fio principal) quando o PC envia um ficheiro: "sound" ou "photo". */
+    public static volatile java.util.function.Consumer<String> onReceived;
+    public static final String PHOTO_FILE = "car_photo";
+
     private static void handle(Socket c) {
         try (Socket sock = c) {
-            sock.setSoTimeout(15000);
-            BufferedReader in = new BufferedReader(new InputStreamReader(sock.getInputStream(), StandardCharsets.UTF_8));
-            String line = in.readLine();
-            if (line == null) return;
-            String[] parts = line.split(" ");
+            sock.setSoTimeout(30000);
+            InputStream in = new java.io.BufferedInputStream(sock.getInputStream());
+            String head = readHead(in);
+            if (head == null) return;
+            String[] lines = head.split("\r\n");
+            String[] parts = lines[0].split(" ");
+            String method = parts[0];
             String path = parts.length > 1 ? parts[1] : "/";
-            while ((line = in.readLine()) != null && !line.isEmpty()) {
-                // ignora os cabeçalhos
+            long length = 0;
+            String type = "";
+            for (String l : lines) {
+                String low = l.toLowerCase(java.util.Locale.ROOT);
+                if (low.startsWith("content-length:")) length = Long.parseLong(l.substring(15).trim());
+                if (low.startsWith("content-type:")) type = l.substring(13).trim();
             }
             OutputStream out = sock.getOutputStream();
+            if (method.equals("POST") && path.startsWith("/upload")) {
+                String what = path.contains("photo") ? "photo" : "sound";
+                String msg = receive(in, length, type, what);
+                text(out, 200, "text/html; charset=utf-8", page(msg));
+                return;
+            }
             if (path.endsWith(".apk")) {
                 String pkg = path.substring(1, path.length() - 4);
                 File f = apkFile(pkg);
@@ -111,10 +125,10 @@ public final class ApkShare {
                     text(out, 404, "text/plain", "Não encontrado");
                     return;
                 }
-                String head = "HTTP/1.0 200 OK\r\nContent-Type: application/vnd.android.package-archive\r\n"
+                String h = "HTTP/1.0 200 OK\r\nContent-Type: application/vnd.android.package-archive\r\n"
                         + "Content-Length: " + f.length() + "\r\nContent-Disposition: attachment; filename=\""
                         + pkg + ".apk\"\r\nConnection: close\r\n\r\n";
-                out.write(head.getBytes(StandardCharsets.UTF_8));
+                out.write(h.getBytes(StandardCharsets.UTF_8));
                 try (InputStream fin = new FileInputStream(f)) {
                     byte[] buf = new byte[64 * 1024];
                     int n;
@@ -126,10 +140,70 @@ public final class ApkShare {
             } else if (path.startsWith("/info")) {
                 text(out, 200, "text/plain; charset=utf-8", info());
             } else {
-                text(out, 200, "text/html; charset=utf-8", page());
+                text(out, 200, "text/html; charset=utf-8", page(null));
             }
         } catch (Exception ignored) {
         }
+    }
+
+    /** Lê os cabeçalhos do pedido (até à linha em branco). */
+    private static String readHead(InputStream in) throws java.io.IOException {
+        java.io.ByteArrayOutputStream b = new java.io.ByteArrayOutputStream();
+        int last4 = 0;
+        int ch;
+        while ((ch = in.read()) >= 0) {
+            b.write(ch);
+            last4 = (last4 << 8) | ch;
+            if (last4 == 0x0D0A0D0A) break;
+            if (b.size() > 16384) return null;
+        }
+        return b.size() == 0 ? null : b.toString("ISO-8859-1");
+    }
+
+    /** Recebe um ficheiro de um formulário (multipart) e guarda-o como som de arranque ou foto do carro. */
+    private static String receive(InputStream in, long length, String type, String what) {
+        try {
+            if (length <= 0 || length > 20L * 1024 * 1024) return "✗ Ficheiro demasiado grande (máximo 20 MB).";
+            int at = type.indexOf("boundary=");
+            if (at < 0) return "✗ Pedido inválido.";
+            String boundary = "--" + type.substring(at + 9).replace("\"", "").trim();
+            byte[] body = new byte[(int) length];
+            int got = 0;
+            while (got < body.length) {
+                int n = in.read(body, got, body.length - got);
+                if (n < 0) break;
+                got += n;
+            }
+            int start = indexOf(body, "\r\n\r\n".getBytes(StandardCharsets.ISO_8859_1), 0);
+            if (start < 0) return "✗ Pedido inválido.";
+            start += 4;
+            int end = indexOf(body, ("\r\n" + boundary).getBytes(StandardCharsets.ISO_8859_1), start);
+            if (end < 0) end = got;
+            if (end - start < 100) return "✗ Escolha um ficheiro primeiro.";
+            String name = what.equals("photo") ? PHOTO_FILE : StartSound.CUSTOM_FILE;
+            try (java.io.FileOutputStream fo = new java.io.FileOutputStream(new File(app.getFilesDir(), name))) {
+                fo.write(body, start, end - start);
+            }
+            if (what.equals("sound")) StartSound.setChoice(app, "custom");
+            java.util.function.Consumer<String> cb = onReceived;
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                if (what.equals("sound")) StartSound.play(app, "custom");
+                if (cb != null) cb.accept(what);
+            });
+            return what.equals("photo") ? "✓ Foto recebida: já está no ecrã inicial do rádio."
+                    : "✓ Som recebido: já é o som de arranque (deve ter tocado agora no rádio).";
+        } catch (Exception e) {
+            return "✗ Não consegui receber: " + e.getMessage();
+        }
+    }
+
+    private static int indexOf(byte[] data, byte[] pattern, int from) {
+        outer:
+        for (int i = from; i <= data.length - pattern.length; i++) {
+            for (int k = 0; k < pattern.length; k++) if (data[i + k] != pattern[k]) continue outer;
+            return i;
+        }
+        return -1;
     }
 
     private static void text(OutputStream out, int code, String type, String body) throws Exception {
@@ -154,25 +228,36 @@ public final class ApkShare {
         }
     }
 
-    private static String page() {
+    private static String page(String message) {
+        String a = "style='color:#5eead4'";
         StringBuilder sb = new StringBuilder();
         sb.append("<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width'>")
-                .append("<title>Apps do carro</title><body style='font-family:sans-serif;background:#0b0d10;")
-                .append("color:#f2f3f5;padding:24px;font-size:18px'><h2>Apps do carro (Launcher do Carro)</h2>")
-                .append("<p>Descarregue os ficheiros e anexe-os na conversa com o Claude.</p><ul>");
+                .append("<title>Launcher do Carro</title><body style='font-family:sans-serif;background:#0b0d10;")
+                .append("color:#f2f3f5;padding:24px;font-size:18px;max-width:760px'><h2>Launcher do Carro</h2>");
+        if (message != null) {
+            sb.append("<p style='padding:14px 18px;border-radius:14px;background:#13161b;border:1px solid #2c313a'>")
+                    .append(message).append("</p>");
+        }
+        String form = "<form method=post enctype=multipart/form-data style='margin:10px 0 26px' action='/upload?t=%s'>"
+                + "<input type=file name=f accept='%s' style='font-size:16px'> "
+                + "<button style='font-size:16px;padding:8px 18px;border-radius:10px;border:0;background:#5eead4'>"
+                + "Enviar para o rádio</button></form>";
+        sb.append("<h3>Som de arranque</h3><p style='color:#9aa0a6'>MP3 ou outro áudio curto (toca no máximo 8 s).</p>")
+                .append(String.format(form, "sound", "audio/*"));
+        sb.append("<h3>Foto do carro</h3><p style='color:#9aa0a6'>JPG ou PNG, de preferência deitada (horizontal).</p>")
+                .append(String.format(form, "photo", "image/*"));
+        sb.append("<h3>Para o Claude analisar</h3><ul>");
         for (String pkg : CAR_PACKAGES) {
             File f = apkFile(pkg);
             if (f != null) {
-                sb.append("<li style='margin:12px 0'><a style='color:#5eead4' href='/").append(pkg).append(".apk'>")
+                sb.append("<li style='margin:10px 0'><a ").append(a).append(" href='/").append(pkg).append(".apk'>")
                         .append(pkg).append(".apk</a> (").append(f.length() / 1024).append(" KB)</li>");
-            } else {
-                sb.append("<li>").append(pkg).append(": não disponível</li>");
             }
         }
-        sb.append("<li style='margin:12px 0'><a style='color:#5eead4' href='/obd.txt' download>obd.txt</a>")
+        sb.append("<li style='margin:10px 0'><a ").append(a).append(" href='/obd.txt' download>obd.txt</a>")
                 .append(" (registo do adaptador do motor)</li>");
-        sb.append("<li style='margin:12px 0'><a style='color:#5eead4' href='/info.txt' download>info.txt</a>")
-                .append(" (resumo das apps)</li></ul></body>");
+        sb.append("<li style='margin:10px 0'><a ").append(a).append(" href='/info.txt' download>info.txt</a>")
+                .append(" (resumo das apps do carro)</li></ul></body>");
         return sb.toString();
     }
 
