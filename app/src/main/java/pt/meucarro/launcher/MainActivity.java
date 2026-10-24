@@ -179,6 +179,7 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
         renderMedia();
         weatherHandler.post(weatherTick);
         weatherHandler.post(nightTick);
+        if (fxView != null) fxView.setRunning(true);
     }
 
     @Override
@@ -191,6 +192,7 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
         Obd.removeListener(this);
         weatherHandler.removeCallbacks(weatherTick);
         weatherHandler.removeCallbacks(nightTick);
+        if (fxView != null) fxView.setRunning(false);
     }
 
     @Override
@@ -446,6 +448,11 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
                     buildUi();
                 })
                 .item("Modo noite", this::nightLabel, true, this::chooseNightMode)
+                .item("Efeitos do tempo na foto", () -> onOff("weather_fx", true), false, () -> {
+                    toggle("weather_fx", true);
+                    updateFx();
+                })
+                .item("Experimentar efeitos", this::tryFx)
                 .item("Barra de cima do sistema", () -> prefs.getBoolean("show_bars", false) ? "Visível" : "Escondida",
                         false, () -> {
                             toggle("show_bars", false);
@@ -629,8 +636,64 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
         }
     }
 
+    private WeatherFxView fxView;
+    private WeatherFxView.Fx demoFx;
+    private boolean demoNight;
+    private long demoUntil;
+
+    /** Chuva, neve, sol, noite… por cima da foto, conforme o tempo lá fora. */
+    private void updateFx() {
+        if (fxView == null) return;
+        long now = System.currentTimeMillis();
+        if (now < demoUntil) {
+            fxView.set(demoFx, demoNight);
+            return;
+        }
+        if (!prefs.getBoolean("weather_fx", true)) {
+            fxView.set(WeatherFxView.Fx.NONE, false);
+            return;
+        }
+        WeatherFxView.Fx e = WeatherFxView.Fx.NONE;
+        if (now - prefs.getLong("w_time", 0) < Weather.MAX_AGE_MS) {
+            e = WeatherFxView.fromCode(prefs.getInt("w_code", -1));
+        }
+        fxView.set(e, Night.isNight(this));
+    }
+
+    private void tryFx() {
+        String[] labels = {"Sol", "Nublado", "Chuviscos", "Chuva", "Trovoada", "Neve", "Nevoeiro",
+                "Noite limpa", "Noite com chuva"};
+        WeatherFxView.Fx[] effects = {WeatherFxView.Fx.SUN, WeatherFxView.Fx.CLOUDS, WeatherFxView.Fx.DRIZZLE,
+                WeatherFxView.Fx.RAIN, WeatherFxView.Fx.STORM, WeatherFxView.Fx.SNOW, WeatherFxView.Fx.FOG,
+                WeatherFxView.Fx.SUN, WeatherFxView.Fx.RAIN};
+        Sheet sheet = Sheet.create(this, "Experimentar efeitos (20 segundos)");
+        for (int i = 0; i < labels.length; i++) {
+            final int k = i;
+            sheet.item(labels[i], () -> {
+                demoFx = effects[k];
+                demoNight = k >= 7;
+                demoUntil = System.currentTimeMillis() + 20000;
+                updateFx();
+                weatherHandler.postDelayed(this::updateFx, 20500);
+            });
+        }
+        sheet.button("Fechar", true, null).show();
+    }
+
     private void showPhoto() {
         ImageView photo = findViewById(R.id.car_photo);
+        if (photo != null && photo.getParent() instanceof ViewGroup) {
+            ViewGroup parent = (ViewGroup) photo.getParent();
+            if (fxView == null || fxView.getParent() != parent) {
+                if (fxView != null && fxView.getParent() instanceof ViewGroup) {
+                    ((ViewGroup) fxView.getParent()).removeView(fxView);
+                }
+                fxView = new WeatherFxView(this);
+                parent.addView(fxView, parent.indexOfChild(photo) + 1, new ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+                fxView.setRunning(true);
+            }
+        }
         View placeholder = findViewById(R.id.photo_placeholder);
         View scrim = findViewById(R.id.scrim); // só existe no layout Foto
         File file = new File(getFilesDir(), PHOTO_FILE);
@@ -645,6 +708,8 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
         }
 
         carBitmap = bitmap;
+        if (fxView != null) fxView.setVisibility(bitmap != null ? View.VISIBLE : View.GONE);
+        updateFx();
         if (bitmap != null) {
             photo.setImageBitmap(bitmap);
             photo.setVisibility(View.VISIBLE);
@@ -721,6 +786,7 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
     private void applyNight() {
         boolean night = Night.isNight(this);
         Night.apply(this, night);
+        updateFx();
         ImageView photo = findViewById(R.id.car_photo);
         if (photo != null) {
             // A foto escurece um pouco mais do que o resto
@@ -756,6 +822,7 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
         ImageView icon = findViewById(R.id.weather_icon);
         TextView temp = findViewById(R.id.weather_temp);
         icon.setImageResource(Weather.iconFor(prefs.getInt("w_code", 0), prefs.getBoolean("w_day", true)));
+        updateFx();
         temp.setText(Math.round(prefs.getFloat("w_temp", 0f)) + "°");
         row.setVisibility(View.VISIBLE);
     }
