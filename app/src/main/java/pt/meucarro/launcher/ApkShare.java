@@ -121,6 +121,8 @@ public final class ApkShare {
                     while ((n = fin.read(buf)) > 0) out.write(buf, 0, n);
                 }
                 out.flush();
+            } else if (path.startsWith("/obd")) {
+                text(out, 200, "text/plain; charset=utf-8", Obd.infoText() + "\n" + Obd.logText());
             } else if (path.startsWith("/info")) {
                 text(out, 200, "text/plain; charset=utf-8", info());
             } else {
@@ -167,6 +169,8 @@ public final class ApkShare {
                 sb.append("<li>").append(pkg).append(": não disponível</li>");
             }
         }
+        sb.append("<li style='margin:12px 0'><a style='color:#5eead4' href='/obd.txt' download>obd.txt</a>")
+                .append(" (registo do adaptador do motor)</li>");
         sb.append("<li style='margin:12px 0'><a style='color:#5eead4' href='/info.txt' download>info.txt</a>")
                 .append(" (resumo das apps)</li></ul></body>");
         return sb.toString();

@@ -186,3 +186,14 @@ no rádio, **Procurar atualizações → Atualizar → Instalar**. A mensagem do
 - Os km/h só aparecem se o rádio tiver antena GPS ligada.
 - Os botões ⏮ ⏯ ⏭ controlam a app de música ou rádio que estiver a tocar.
 - Letra: Rajdhani (licença SIL Open Font, em `app/src/main/assets/fonts/OFL.txt`).
+
+## 15. Motor (adaptador OBD2)
+
+Adaptador: Vgate iCar Pro **Bluetooth 3.0** (Bluetooth clássico; o rádio não tem BLE).
+- Primeira vez: ecrã Carro → cartão **MOTOR ›** (ou Definições → Adaptador OBD2) →
+  "Procurar adaptador" com a ignição ligada → tocar no adaptador (OBDII / V-LINK / iCar). Código: 1234.
+- Depois liga-se sozinho quando o carro arranca (tenta de 5 em 5 s, depois com mais calma).
+- Mostra rotações, velocidade, temperatura do motor, turbo, bateria, consumo (estimativa) e a luz
+  do motor com os códigos de erro explicados. "Apagar erros" só depois de reparar.
+- O consumo de cada viagem aparece na lista de viagens. Acertar: Motor → Mais → Acertar o consumo.
+- Se algo falhar: Motor → Mais → Registo da ligação (ou "Enviar a app do carro para o PC" → obd.txt).

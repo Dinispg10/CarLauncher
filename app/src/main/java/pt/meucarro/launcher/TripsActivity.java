@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Locale;
 
 /** Ecrã Carro: viagem atual em destaque, motor (OBD2, em breve) e as últimas 10 viagens. */
-public class TripsActivity extends Activity implements TripService.Listener {
+public class TripsActivity extends Activity implements TripService.Listener, Obd.Listener {
 
     private static final Locale PT = Locale.forLanguageTag("pt-PT");
 
@@ -42,6 +42,8 @@ public class TripsActivity extends Activity implements TripService.Listener {
             chooseCarApp();
             return true;
         });
+        findViewById(R.id.engine_card).setOnClickListener(v ->
+                startActivity(new android.content.Intent(this, EngineActivity.class)));
         findViewById(R.id.btn_back).setOnClickListener(v -> finish());
         findViewById(R.id.btn_new_trip).setOnClickListener(v ->
                 Sheet.confirm(this, "Começar nova viagem?",
@@ -91,6 +93,7 @@ public class TripsActivity extends Activity implements TripService.Listener {
         Ui.applySystemBars(this);
         Night.apply(this, Night.isNight(this));
         TripService.addListener(this);
+        Obd.addListener(this);
         render();
     }
 
@@ -98,6 +101,40 @@ public class TripsActivity extends Activity implements TripService.Listener {
     protected void onPause() {
         super.onPause();
         TripService.removeListener(this);
+        Obd.removeListener(this);
+    }
+
+    @Override
+    public void onObdChanged() {
+        renderEngine();
+    }
+
+    /** Resumo do motor no cartão "MOTOR". */
+    private void renderEngine() {
+        TextView line = findViewById(R.id.engine_line);
+        if (Obd.savedMac(this) == null) {
+            line.setText("Ligar o adaptador");
+            line.setTextColor(0xFF9AA0A6);
+            return;
+        }
+        if (Obd.state == Obd.State.CONNECTED) {
+            if (Obd.mil || !Obd.codes.isEmpty()) {
+                line.setText("⚠ " + (Obd.codes.isEmpty() ? "Luz do motor" : Obd.codes.get(0)));
+                line.setTextColor(0xFFF87171);
+                return;
+            }
+            StringBuilder sb = new StringBuilder();
+            if (!Double.isNaN(Obd.coolant)) sb.append(Math.round(Obd.coolant)).append(" °C");
+            if (!Double.isNaN(Obd.voltage)) {
+                if (sb.length() > 0) sb.append(" · ");
+                sb.append(String.format(PT, "%.1f V", Obd.voltage));
+            }
+            line.setText(sb.length() == 0 ? "Ligado" : sb.toString());
+            line.setTextColor(0xFFF2F3F5);
+        } else {
+            line.setText(Obd.state == Obd.State.NO_CAR ? "À espera do motor" : "A ligar…");
+            line.setTextColor(0xFF9AA0A6);
+        }
     }
 
     @Override
@@ -112,6 +149,7 @@ public class TripsActivity extends Activity implements TripService.Listener {
     }
 
     private void render() {
+        renderEngine();
         // ---- Viagem atual ----
         TripService.Trip current = TripService.current(this);
         TextView state = findViewById(R.id.cur_state);
@@ -127,6 +165,7 @@ public class TripsActivity extends Activity implements TripService.Listener {
                     : String.valueOf(Math.round(current.km)));
             time.setText(TripService.formatDuration(current.durationMs));
             avg.setText(current.durationMs > 60000 ? Math.round(current.avgKmh()) + " km/h" : "—");
+            ((TextView) findViewById(R.id.cur_l100)).setText(current.l100Text());
             since.setText("Desde as " + new SimpleDateFormat("HH:mm", PT).format(new Date(current.startMs)));
         } else {
             state.setText("PARADO");
@@ -134,6 +173,7 @@ public class TripsActivity extends Activity implements TripService.Listener {
             km.setText("0");
             time.setText("—");
             avg.setText("—");
+            ((TextView) findViewById(R.id.cur_l100)).setText("—");
             since.setText("Começa sozinha quando o carro andar");
         }
 
@@ -181,8 +221,9 @@ public class TripsActivity extends Activity implements TripService.Listener {
                 TripService.formatKm(trip.km),
                 TripService.formatDuration(trip.durationMs),
                 trip.durationMs > 60000 ? Math.round(trip.avgKmh()) + " km/h" : "—",
+                trip.l100Text(),
         };
-        int[] colors = {0xFFF2F3F5, 0xFFC9CDD3, 0xFFC9CDD3};
+        int[] colors = {0xFFF2F3F5, 0xFFC9CDD3, 0xFFC9CDD3, 0xFFC9CDD3};
         for (int i = 0; i < values.length; i++) {
             TextView t = text(values[i], i == 0 ? "600" : "500", 19, colors[i]);
             t.setGravity(Gravity.END);

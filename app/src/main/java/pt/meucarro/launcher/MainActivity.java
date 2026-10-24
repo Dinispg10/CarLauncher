@@ -27,7 +27,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 
-public class MainActivity extends Activity implements MediaHub.Listener, TripService.Listener,
+public class MainActivity extends Activity implements MediaHub.Listener, TripService.Listener, Obd.Listener,
         RadioService.Listener {
 
     // Botões configuráveis da barra
@@ -167,7 +167,10 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
         }
         TripService.start(this);
         TripService.addListener(this);
+        ObdService.start(this);
+        Obd.addListener(this);
         renderTrip();
+        maybeShowEngineAlert();
         startLocation();
         hub.addListener(this);
         RadioService.addListener(this);
@@ -185,6 +188,7 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
         hub.removeListener(this);
         RadioService.removeListener(this);
         TripService.removeListener(this);
+        Obd.removeListener(this);
         weatherHandler.removeCallbacks(weatherTick);
         weatherHandler.removeCallbacks(nightTick);
     }
@@ -462,6 +466,8 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
                 .item("Acesso a notificações", () -> hub.hasAccess() ? "Ativo" : "Desativado", true,
                         () -> MediaHub.openAccessSettings(this))
                 .section("Carro")
+                .item("Adaptador OBD2 (motor)", () -> Obd.savedMac(this) == null ? "Por ligar" : Obd.savedName(this),
+                        true, () -> startActivity(new Intent(this, EngineActivity.class)))
                 .item("Enviar a app do carro para o PC", this::shareCarApps)
                 .section("Sistema")
                 .item("Procurar atualizações", Updater::currentVersion, true, () -> Updater.check(this, false))
@@ -492,6 +498,37 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
                         + "Desliga-se sozinho daqui a 15 minutos.")
                 .button("Parar", false, ApkShare::stop)
                 .button("OK", true, null)
+                .show();
+    }
+
+    @Override
+    public void onObdChanged() {
+        maybeShowEngineAlert();
+    }
+
+    private boolean engineAlertOpen;
+
+    /** A luz do motor acendeu (ou há erros novos): avisa com uma janela no ecrã inicial. */
+    private void maybeShowEngineAlert() {
+        if (!Obd.alertPending || engineAlertOpen || isFinishing()) return;
+        engineAlertOpen = true;
+        StringBuilder text = new StringBuilder();
+        for (String c : Obd.codes) {
+            Dtc.Info info = Dtc.info(c);
+            text.append(c).append(" · ").append(info.text).append('\n').append(info.advice()).append("\n\n");
+        }
+        if (text.length() == 0) text.append("O carro acendeu a luz do motor, mas ainda não enviou o código.");
+        Sheet.create(this, Obd.mil ? "⚠ Luz do motor acesa" : "⚠ Aviso do motor").width(860)
+                .message(text.toString().trim())
+                .button("OK", false, () -> {
+                    engineAlertOpen = false;
+                    Obd.acknowledge(this);
+                })
+                .button("Ver detalhes", true, () -> {
+                    engineAlertOpen = false;
+                    Obd.acknowledge(this);
+                    startActivity(new Intent(this, EngineActivity.class));
+                })
                 .show();
     }
 

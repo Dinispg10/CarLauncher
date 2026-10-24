@@ -72,11 +72,17 @@ public class TripService extends Service {
         public final double km;
         public final long durationMs;
         public final long startMs;
+        /** Consumo médio (L/100 km) medido pelo adaptador OBD2, ou NaN se não houver. */
+        public double l100 = Double.NaN;
 
         Trip(double km, long durationMs, long startMs) {
             this.km = km;
             this.durationMs = durationMs;
             this.startMs = startMs;
+        }
+
+        public String l100Text() {
+            return Double.isNaN(l100) ? "—" : String.format(Locale.forLanguageTag("pt-PT"), "%.1f L", l100);
         }
 
         public double avgKmh() {
@@ -95,7 +101,22 @@ public class TripService extends Service {
         long start = p.getLong("trip_start", 0);
         long last = p.getLong("trip_last_time", 0);
         if (start == 0 || System.currentTimeMillis() - last > NEW_TRIP_GAP_MS) return null;
-        return new Trip(p.getFloat("trip_km", 0f), last - start, start);
+        Trip t = new Trip(p.getFloat("trip_km", 0f), last - start, start);
+        t.l100 = tripL100(context, p);
+        return t;
+    }
+
+    /** Consumo da viagem atual com os contadores do adaptador (só conta enquanto esteve ligado). */
+    private static double tripL100(Context c, SharedPreferences p) {
+        if (!p.contains("trip_fuel0")) return Double.NaN;
+        double km = Obd.totalKm(c) - p.getFloat("trip_okm0", 0f);
+        double l = Obd.totalFuelL(c) - p.getFloat("trip_fuel0", 0f);
+        return km >= 1.0 && l > 0 ? l / km * 100.0 : Double.NaN;
+    }
+
+    private static void markObdStart(Context c, SharedPreferences p) {
+        p.edit().putFloat("trip_fuel0", (float) Obd.totalFuelL(c))
+                .putFloat("trip_okm0", (float) Obd.totalKm(c)).apply();
     }
 
     public static Trip previous(Context context) {
@@ -108,8 +129,9 @@ public class TripService extends Service {
     /** Começa uma viagem nova (a atual passa a ser a "anterior"). */
     public static void reset(Context context) {
         SharedPreferences p = prefs(context);
-        archive(p);
+        archive(context, p);
         p.edit().putLong("trip_start", 0).putFloat("trip_km", 0f).apply();
+        markObdStart(context, p);
         if (running != null) {
             running.start = 0;
             running.km = 0;
@@ -230,8 +252,9 @@ public class TripService extends Service {
         if (start == 0 || now - lastTime > NEW_TRIP_GAP_MS) {
             if (start != 0) {
                 save();
-                archive(p);
+                archive(this, p);
             }
+            markObdStart(this, p);
             start = now;
             km = 0;
             lastPoint = null;
@@ -260,7 +283,7 @@ public class TripService extends Service {
     /** Guarda a viagem atual como "anterior" (só se tiver andado alguma coisa). */
     private static final int HISTORY_SIZE = 10;
 
-    private static void archive(SharedPreferences p) {
+    private static void archive(Context c, SharedPreferences p) {
         long start = p.getLong("trip_start", 0);
         float tripKm = p.getFloat("trip_km", 0f);
         if (start == 0 || tripKm < 0.2f) return;
@@ -272,6 +295,8 @@ public class TripService extends Service {
             entry.put("s", start);
             entry.put("km", (double) tripKm);
             entry.put("d", duration);
+            double l100 = tripL100(c, p);
+            if (!Double.isNaN(l100)) entry.put("l", l100);
             next.put(entry);
             JSONArray old = new JSONArray(p.getString("trip_history", "[]"));
             for (int i = 0; i < old.length() && next.length() < HISTORY_SIZE; i++) {
@@ -294,7 +319,9 @@ public class TripService extends Service {
             JSONArray arr = new JSONArray(prefs(context).getString("trip_history", "[]"));
             for (int i = 0; i < arr.length(); i++) {
                 JSONObject o = arr.getJSONObject(i);
-                out.add(new Trip(o.optDouble("km", 0), o.optLong("d", 0), o.optLong("s", 0)));
+                Trip t = new Trip(o.optDouble("km", 0), o.optLong("d", 0), o.optLong("s", 0));
+                t.l100 = o.optDouble("l", Double.NaN);
+                out.add(t);
             }
         } catch (Exception ignored) {
         }

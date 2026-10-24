@@ -10,10 +10,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Para ver as apps instaladas no rádio (lista de apps e app CAN) -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
-    <!-- Bluetooth: adaptador OBD2 (no futuro) -->
+    <!-- Bluetooth: adaptador OBD2 (motor) -->
     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
     <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
@@ -72,6 +73,12 @@
             android:exported="false"
             android:launchMode="singleTop" />
 
+        <activity
+            android:name=".EngineActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode"
+            android:exported="false"
+            android:launchMode="singleTop" />
+
         <!-- Resultado da instalação de uma atualização -->
         <receiver
             android:name=".UpdateReceiver"
@@ -82,6 +89,12 @@
             android:name=".RadioService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+
+        <!-- Liga-se ao adaptador OBD2 e lê os dados do motor -->
+        <service
+            android:name=".ObdService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
 
         <!-- Regista a viagem (km, tempo, média) com o GPS -->
         <service

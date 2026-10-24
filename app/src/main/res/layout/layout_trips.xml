@@ -207,6 +207,31 @@
                             android:textColor="#FFF2F3F5"
                             android:textSize="30px" />
                     </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="0px"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:letterSpacing="0.14"
+                            android:tag="w700"
+                            android:text="CONSUMO"
+                            android:textColor="#FF9AA0A6"
+                            android:textSize="13px" />
+
+                        <TextView
+                            android:id="@+id/cur_l100"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:tag="w600"
+                            android:text="—"
+                            android:textColor="#FFF2F3F5"
+                            android:textSize="30px" />
+                    </LinearLayout>
                 </LinearLayout>
 
                 <TextView
@@ -219,38 +244,83 @@
                     android:textSize="16px" />
             </LinearLayout>
 
-            <!-- Dados do carro: abre a app CAN do rádio (toque longo para escolher outra) -->
+            <!-- Motor (adaptador OBD2) e dados do carro (app CAN do rádio) -->
             <LinearLayout
-                android:id="@+id/car_data_card"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="14px"
-                android:background="@drawable/card_bg"
-                android:clickable="true"
-                android:focusable="true"
-                android:longClickable="true"
-                android:orientation="vertical"
-                android:paddingStart="28px"
-                android:paddingTop="18px"
-                android:paddingEnd="24px"
-                android:paddingBottom="18px">
+                android:orientation="horizontal">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <LinearLayout
+                    android:id="@+id/engine_card"
+                    android:layout_width="0px"
                     android:layout_height="wrap_content"
-                    android:letterSpacing="0.14"
-                    android:tag="w700 accent_text"
-                    android:text="DADOS DO CARRO  ›"
-                    android:textSize="14px" />
+                    android:layout_weight="1"
+                    android:background="@drawable/card_bg"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:orientation="vertical"
+                    android:paddingStart="24px"
+                    android:paddingTop="16px"
+                    android:paddingEnd="16px"
+                    android:paddingBottom="16px">
 
-                <TextView
-                    android:layout_width="match_parent"
+                    <TextView
+                        android:id="@+id/engine_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:letterSpacing="0.14"
+                        android:tag="w700 accent_text"
+                        android:text="MOTOR  ›"
+                        android:textSize="14px" />
+
+                    <TextView
+                        android:id="@+id/engine_line"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6px"
+                        android:maxLines="1"
+                        android:tag="w600"
+                        android:text="Ligar o adaptador"
+                        android:textColor="#FFF2F3F5"
+                        android:textSize="19px" />
+                </LinearLayout>
+
+                <!-- Dados do carro: abre a app CAN do rádio (toque longo para escolher outra) -->
+                <LinearLayout
+                    android:id="@+id/car_data_card"
+                    android:layout_width="0px"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6px"
-                    android:tag="w500"
-                    android:text="Combustível, temperatura exterior, bateria, km totais, portas…"
-                    android:textColor="#FF9AA0A6"
-                    android:textSize="17px" />
+                    android:layout_marginStart="14px"
+                    android:layout_weight="1"
+                    android:background="@drawable/card_bg"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:longClickable="true"
+                    android:orientation="vertical"
+                    android:paddingStart="24px"
+                    android:paddingTop="16px"
+                    android:paddingEnd="16px"
+                    android:paddingBottom="16px">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:letterSpacing="0.14"
+                        android:tag="w700 accent_text"
+                        android:text="DADOS DO CARRO  ›"
+                        android:textSize="14px" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6px"
+                        android:maxLines="1"
+                        android:tag="w500"
+                        android:text="Depósito, portas…"
+                        android:textColor="#FF9AA0A6"
+                        android:textSize="19px" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 
