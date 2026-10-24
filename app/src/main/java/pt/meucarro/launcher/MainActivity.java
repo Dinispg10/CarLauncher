@@ -224,12 +224,18 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
 
         if (RadioService.isOn() && RadioService.currentIndex() >= 0) {
             RadioStations.Station st = RadioStations.ALL[RadioService.currentIndex()];
-            label.setText(RadioService.state() == RadioService.State.LOADING ? "RÁDIO · A LIGAR" : "RÁDIO");
-            title.setText(st.name);
-            if (artist != null) artist.setText(st.genre);
+            boolean song = RadioService.state() == RadioService.State.PLAYING
+                    && RadioMeta.hasSong(RadioService.currentIndex());
+            label.setText(RadioService.state() == RadioService.State.LOADING ? "RÁDIO · A LIGAR"
+                    : "RÁDIO · " + st.name.toUpperCase(java.util.Locale.ROOT));
+            title.setText(song ? RadioMeta.title : st.name);
+            if (artist != null) {
+                artist.setText(song ? (RadioMeta.artist == null ? st.name : RadioMeta.artist) : st.genre);
+            }
             play.setImageResource(R.drawable.ic_pause_dark);
             ImageView art = findViewById(R.id.media_art);
-            art.setImageBitmap(RadioStations.art(this, RadioService.currentIndex()));
+            art.setImageBitmap(song && RadioMeta.art != null ? RadioMeta.art
+                    : RadioStations.art(this, RadioService.currentIndex()));
             art.setVisibility(View.VISIBLE);
             findViewById(R.id.media_art_placeholder).setVisibility(View.GONE);
             return;

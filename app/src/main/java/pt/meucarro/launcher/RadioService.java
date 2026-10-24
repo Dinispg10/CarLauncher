@@ -193,6 +193,7 @@ public class RadioService extends Service implements AudioManager.OnAudioFocusCh
     private void play(int index) {
         if (index < 0 || index >= RadioStations.ALL.length) index = 0;
         releasePlayer();
+        if (index != currentIndex) RadioMeta.stop();
         currentIndex = index;
         urlIndex = 0;
         retries = 0;
@@ -297,6 +298,7 @@ public class RadioService extends Service implements AudioManager.OnAudioFocusCh
     /** Para a rádio. Com destroy=true termina também o serviço. */
     private void stopPlayback(boolean destroy) {
         AudioLog.add("Rádio: parada" + (destroy ? "" : " (pausa)"));
+        RadioMeta.stop();
         holdWifi(false);
         attempt++;
         releasePlayer();
@@ -322,6 +324,13 @@ public class RadioService extends Service implements AudioManager.OnAudioFocusCh
 
     private void setState(State next) {
         state = next;
+        if (next == State.PLAYING && currentIndex >= 0) {
+            // Nome da música: atualiza o ecrã e a sessão quando muda
+            RadioMeta.start(this, currentIndex, () -> {
+                updateSession();
+                notifyListeners();
+            });
+        }
         updateSession();
         notifyListeners();
     }
@@ -378,10 +387,14 @@ public class RadioService extends Service implements AudioManager.OnAudioFocusCh
         RadioStations.Station station = RadioStations.ALL[currentIndex];
         String status = state == State.LOADING ? "A ligar…"
                 : state == State.ERROR ? "Sem ligação. Verifique a internet." : "Rádio online · em direto";
+        boolean song = state == State.PLAYING && RadioMeta.hasSong(currentIndex);
+        Bitmap cover = song && RadioMeta.art != null ? RadioMeta.art : stationArt(station);
         session.setMetadata(new MediaMetadata.Builder()
-                .putString(MediaMetadata.METADATA_KEY_TITLE, station.name)
-                .putString(MediaMetadata.METADATA_KEY_ARTIST, status)
-                .putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, stationArt(station))
+                .putString(MediaMetadata.METADATA_KEY_TITLE, song ? RadioMeta.title : station.name)
+                .putString(MediaMetadata.METADATA_KEY_ARTIST, song
+                        ? (RadioMeta.artist == null ? station.name : RadioMeta.artist) : status)
+                .putString(MediaMetadata.METADATA_KEY_ALBUM, station.name)
+                .putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, cover)
                 .build());
         int playbackState = state == State.PLAYING ? PlaybackState.STATE_PLAYING
                 : state == State.LOADING ? PlaybackState.STATE_BUFFERING

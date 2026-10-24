@@ -16,7 +16,8 @@ public class RadioNowActivity extends Activity implements RadioService.Listener 
 
     private View root;
     private ImageView logo, play;
-    private TextView state, name, genre;
+    private TextView state, name, genre, song;
+    private Object shownArt;
     private View dot;
     private EqualizerView eq;
     private final FrameLayout[] stripItems = new FrameLayout[RadioStations.ALL.length];
@@ -40,6 +41,7 @@ public class RadioNowActivity extends Activity implements RadioService.Listener 
         state = findViewById(R.id.now_state);
         name = findViewById(R.id.now_name);
         genre = findViewById(R.id.now_genre);
+        song = findViewById(R.id.now_song);
         dot = findViewById(R.id.now_dot);
         eq = findViewById(R.id.now_eq);
 
@@ -137,6 +139,18 @@ public class RadioNowActivity extends Activity implements RadioService.Listener 
             logo.setScaleX(0.94f);
             logo.setScaleY(0.94f);
             logo.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(260).start();
+        }
+
+        // Música a tocar (quando a rádio a envia) e a capa no lugar do logótipo
+        boolean hasSong = st == RadioService.State.PLAYING && RadioMeta.hasSong(index);
+        song.setVisibility(hasSong ? View.VISIBLE : View.GONE);
+        if (hasSong) song.setText("♪  " + RadioMeta.songLine());
+        Object wantArt = hasSong && RadioMeta.art != null ? RadioMeta.art : (Object) index;
+        if (!wantArt.equals(shownArt)) {
+            shownArt = wantArt;
+            logo.setImageBitmap(wantArt instanceof Integer ? RadioStations.art(this, index) : RadioMeta.art);
+            logo.setAlpha(0f);
+            logo.animate().alpha(1f).setDuration(400).start();
         }
 
         switch (st) {
