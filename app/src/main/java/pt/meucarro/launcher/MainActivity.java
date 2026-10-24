@@ -451,6 +451,10 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
                     maybeUpdateWeather();
                     renderWeather();
                 })
+                .item("Nome na saudação", () -> {
+                    String n = prefs.getString("driver_name", "Dinis").trim();
+                    return n.isEmpty() ? "Sem nome" : n;
+                }, true, this::editDriverName)
                 .item("Animação de arranque", () -> onOff("show_splash", true), false,
                         () -> toggle("show_splash", true))
                 .item("Ver a animação de arranque agora", () -> {
@@ -499,6 +503,18 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
                 .button("Parar", false, ApkShare::stop)
                 .button("OK", true, null)
                 .show();
+    }
+
+    /** "Boa noite, Dinis": muda (ou apaga) o nome da animação de arranque. */
+    private void editDriverName() {
+        Sheet[] holder = new Sheet[1];
+        holder[0] = Sheet.create(this, "Nome na saudação").width(700)
+                .message("Aparece na animação de arranque: \"Boa noite, Dinis\". Deixe vazio para não mostrar nome.")
+                .input(prefs.getString("driver_name", "Dinis"))
+                .button("Cancelar", false, null)
+                .button("Guardar", true, () ->
+                        prefs.edit().putString("driver_name", holder[0].inputValue()).apply());
+        holder[0].show();
     }
 
     @Override

@@ -84,6 +84,7 @@ public class EngineActivity extends Activity implements Obd.Listener {
         clp.topMargin = 16;
         root.addView(content, clp);
         setContentView(frame);
+        Ui.addClock(this);
         showRightView();
     }
 

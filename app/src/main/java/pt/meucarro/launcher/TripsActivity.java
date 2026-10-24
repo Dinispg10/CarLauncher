@@ -31,6 +31,7 @@ public class TripsActivity extends Activity implements TripService.Listener, Obd
         ScaleFrame frame = new ScaleFrame(this);
         getLayoutInflater().inflate(R.layout.layout_trips, frame, true);
         setContentView(frame);
+        Ui.addClock(this);
         Ui.style(frame, accent);
 
         list = findViewById(R.id.trips_list);

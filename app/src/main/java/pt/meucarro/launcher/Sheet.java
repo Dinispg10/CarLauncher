@@ -72,6 +72,8 @@ public final class Sheet {
     private final List<Button> buttons = new ArrayList<>();
     private Dialog dialog;
     private LinearLayout rows;
+    private String inputInitial;
+    private android.widget.EditText input;
 
     private Sheet(Activity activity, String title) {
         this.activity = activity;
@@ -88,6 +90,16 @@ public final class Sheet {
     public Sheet message(String text) {
         this.message = text;
         return this;
+    }
+
+    /** Caixa para escrever (ex.: um nome). O texto lê-se com inputValue() na ação do botão. */
+    public Sheet input(String initial) {
+        this.inputInitial = initial == null ? "" : initial;
+        return this;
+    }
+
+    public String inputValue() {
+        return input == null ? "" : input.getText().toString().trim();
     }
 
     public Sheet width(int px) {
@@ -187,6 +199,25 @@ public final class Sheet {
             msg.setPadding(16, 0, 16, entries.isEmpty() ? 4 : 12);
             body.addView(msg);
         }
+        if (inputInitial != null) {
+            input = new android.widget.EditText(activity);
+            input.setText(inputInitial);
+            input.setSelection(input.getText().length());
+            input.setSingleLine(true);
+            input.setTypeface(Ui.font(activity, "600"));
+            input.setTextSize(TypedValue.COMPLEX_UNIT_PX, 26);
+            input.setTextColor(0xFFF2F3F5);
+            input.setHintTextColor(0xFF6B7280);
+            input.setPadding(20, 12, 20, 12);
+            GradientDrawable ib = new GradientDrawable();
+            ib.setColor(0xFF0B0D10);
+            ib.setCornerRadius(18f);
+            ib.setStroke(2, accent);
+            input.setBackground(ib);
+            LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 64);
+            ilp.setMargins(16, 4, 16, 8);
+            body.addView(input, ilp);
+        }
         rows = new LinearLayout(activity);
         rows.setOrientation(LinearLayout.VERTICAL);
         body.addView(rows);
@@ -214,6 +245,11 @@ public final class Sheet {
         card.setScaleY(0.96f);
         dialog.show();
         if (window != null) window.clearFlags(WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE);
+        if (window != null && input != null) {
+            window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE
+                    | WindowManager.LayoutParams.SOFT_INPUT_ADJUST_PAN);
+            input.requestFocus();
+        }
         card.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(180).start();
     }
 

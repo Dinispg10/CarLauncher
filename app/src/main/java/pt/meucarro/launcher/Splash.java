@@ -76,7 +76,7 @@ public final class Splash {
         root.addView(texts, textLp);
 
         TextView greeting = new TextView(activity);
-        greeting.setText(greeting());
+        greeting.setText(greeting(activity));
         greeting.setTextColor(0xFFF2F3F5);
         greeting.setTypeface(Ui.font(activity, "300"));
         greeting.setTextSize(TypedValue.COMPLEX_UNIT_PX, 118);
@@ -142,11 +142,17 @@ public final class Splash {
         view.setTextSize(TypedValue.COMPLEX_UNIT_PX, size);
     }
 
-    private static String greeting() {
+    private static String greeting(Activity activity) {
         int hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY);
-        if (hour >= 5 && hour < 12) return "Bom dia";
-        if (hour >= 12 && hour < 20) return "Boa tarde";
-        return "Boa noite";
+        String g = hour >= 5 && hour < 12 ? "Bom dia" : hour >= 12 && hour < 20 ? "Boa tarde" : "Boa noite";
+        String name = driverName(activity);
+        return name.isEmpty() ? g : g + ", " + name;
+    }
+
+    /** Nome na saudação (Definições → Ecrã inicial). */
+    public static String driverName(Activity activity) {
+        return activity.getSharedPreferences("launcher", Activity.MODE_PRIVATE)
+                .getString("driver_name", "Dinis").trim();
     }
 
     private static String subtitle(Activity activity) {

@@ -32,6 +32,7 @@ public class RadioNowActivity extends Activity implements RadioService.Listener 
         ScaleFrame frame = new ScaleFrame(this);
         getLayoutInflater().inflate(R.layout.layout_radio_now, frame, true);
         setContentView(frame);
+        Ui.addClock(this);
         root = frame;
 
         logo = findViewById(R.id.now_logo);

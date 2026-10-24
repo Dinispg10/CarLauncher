@@ -26,6 +26,7 @@ public class AppsActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_apps);
+        Ui.addClock(this);
         View root = findViewById(android.R.id.content);
         int accent = getSharedPreferences("launcher", MODE_PRIVATE).getInt("accent", 0xFF5EEAD4);
         Ui.style(root, accent);

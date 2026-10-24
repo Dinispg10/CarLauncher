@@ -33,6 +33,7 @@ public class RadioActivity extends Activity implements RadioService.Listener {
         ScaleFrame frame = new ScaleFrame(this);
         getLayoutInflater().inflate(R.layout.layout_radio, frame, true);
         setContentView(frame);
+        Ui.addClock(this);
 
         buildGrid(findViewById(R.id.radio_grid));
         Ui.style(frame, accent);

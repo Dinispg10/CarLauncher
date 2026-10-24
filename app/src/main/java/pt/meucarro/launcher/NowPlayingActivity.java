@@ -44,6 +44,7 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
         ScaleFrame frame = new ScaleFrame(this);
         getLayoutInflater().inflate(R.layout.layout_tocar, frame, true);
         setContentView(frame);
+        Ui.addClock(this);
         Ui.style(frame, accent);
         root = frame;
 

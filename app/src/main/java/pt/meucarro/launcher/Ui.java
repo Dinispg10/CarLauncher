@@ -69,6 +69,30 @@ public final class Ui {
         }
     }
 
+    /**
+     * Põe as horas no centro da barra de cima (em cima do conteúdo, sem bloquear toques).
+     * Chamar depois do setContentView.
+     */
+    public static void addClock(Activity activity) {
+        ScaleFrame frame = new ScaleFrame(activity);
+        android.widget.FrameLayout layer = new android.widget.FrameLayout(activity);
+        android.widget.TextClock clock = new android.widget.TextClock(activity);
+        clock.setFormat24Hour("HH:mm");
+        clock.setFormat12Hour("HH:mm");
+        clock.setTypeface(font(activity, "600"));
+        clock.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, 30);
+        clock.setTextColor(0xFFF2F3F5);
+        clock.setIncludeFontPadding(false);
+        android.widget.FrameLayout.LayoutParams lp = new android.widget.FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.gravity = android.view.Gravity.TOP | android.view.Gravity.CENTER_HORIZONTAL;
+        lp.topMargin = 33;
+        layer.addView(clock, lp);
+        frame.addView(layer);
+        activity.addContentView(frame, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+    }
+
     /** Aplica letra e cor de destaque a toda a árvore de vistas. */
     public static void style(View view, int accent) {
         walk(view, accent, true);
