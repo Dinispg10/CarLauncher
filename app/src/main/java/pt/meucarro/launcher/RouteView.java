@@ -94,12 +94,11 @@ public class RouteView extends View {
     private int zoom;
 
     private static double wx(double lon) {
-        return (lon + 180.0) / 360.0 * 256.0;
+        return MapTiles.wx(lon);
     }
 
     private static double wy(double lat) {
-        double r = Math.toRadians(Math.max(-85, Math.min(85, lat)));
-        return (1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * 256.0;
+        return MapTiles.wy(lat);
     }
 
     /** Converte latitude/longitude para o ecrã, a caber com margem e sem deformar. */
@@ -140,97 +139,11 @@ public class RouteView extends View {
         }
     }
 
-    // ---------- Mapa por trás (CARTO "dark", dados OpenStreetMap; guardado no rádio) ----------
-
-    private static final java.util.concurrent.ExecutorService TILES =
-            java.util.concurrent.Executors.newFixedThreadPool(2);
-    private static final java.util.Map<String, android.graphics.Bitmap> MEMORY =
-            new java.util.LinkedHashMap<String, android.graphics.Bitmap>(32, 0.75f, true) {
-                @Override
-                protected boolean removeEldestEntry(java.util.Map.Entry<String, android.graphics.Bitmap> e) {
-                    return size() > 30;
-                }
-            };
-    private static final java.util.Set<String> LOADING = new java.util.HashSet<>();
-    private final Paint tilePaint = new Paint(Paint.FILTER_BITMAP_FLAG);
-    private final Paint credit = new Paint(Paint.ANTI_ALIAS_FLAG);
-    private final android.graphics.RectF rect = new android.graphics.RectF();
+    // ---------- Mapa por trás ----------
     private boolean anyTile;
 
     private void drawMap(Canvas c) {
-        anyTile = false;
-        if (xs.length < 2) return;
-        double tileWorld = 256.0 / (1 << zoom);
-        double left = minWx - offX / scale, top = minWy - offY / scale;
-        double right = left + getWidth() / scale, bottom = top + getHeight() / scale;
-        int max = (1 << zoom) - 1;
-        for (int tx = (int) Math.floor(left / tileWorld); tx <= (int) Math.floor(right / tileWorld); tx++) {
-            for (int ty = (int) Math.floor(top / tileWorld); ty <= (int) Math.floor(bottom / tileWorld); ty++) {
-                if (tx < 0 || ty < 0 || tx > max || ty > max) continue;
-                android.graphics.Bitmap b = tile(zoom, tx, ty);
-                if (b == null) continue;
-                anyTile = true;
-                float x0 = (float) (offX + (tx * tileWorld - minWx) * scale);
-                float y0 = (float) (offY + (ty * tileWorld - minWy) * scale);
-                float size = (float) (tileWorld * scale);
-                rect.set(x0, y0, x0 + size + 0.5f, y0 + size + 0.5f);
-                c.drawBitmap(b, null, rect, tilePaint);
-            }
-        }
-        if (anyTile) c.drawColor(0x22000000); // um pouco mais escuro, para a linha sobressair
-    }
-
-    private android.graphics.Bitmap tile(int z, int x, int y) {
-        final String key = z + "_" + x + "_" + y;
-        synchronized (MEMORY) {
-            android.graphics.Bitmap b = MEMORY.get(key);
-            if (b != null) return b;
-            if (LOADING.contains(key)) return null;
-            LOADING.add(key);
-        }
-        final java.io.File dir = new java.io.File(getContext().getFilesDir(), "tiles");
-        TILES.execute(() -> {
-            android.graphics.Bitmap b = null;
-            try {
-                //noinspection ResultOfMethodCallIgnored
-                dir.mkdirs();
-                java.io.File f = new java.io.File(dir, key + ".png");
-                if (!f.exists()) {
-                    String host = "abcd".charAt((x + y) % 4) + ".basemaps.cartocdn.com";
-                    java.net.HttpURLConnection con = (java.net.HttpURLConnection) new java.net.URL(
-                            "https://" + host + "/dark_all/" + z + "/" + x + "/" + y + "@2x.png").openConnection();
-                    con.setConnectTimeout(8000);
-                    con.setReadTimeout(10000);
-                    con.setRequestProperty("User-Agent", "LauncherDoCarro/1.0 (Android)");
-                    if (con.getResponseCode() == 200) {
-                        java.io.File tmp = new java.io.File(dir, key + ".tmp");
-                        try (java.io.InputStream in = con.getInputStream();
-                             java.io.FileOutputStream out = new java.io.FileOutputStream(tmp)) {
-                            byte[] buf = new byte[16384];
-                            int n;
-                            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-                        }
-                        //noinspection ResultOfMethodCallIgnored
-                        tmp.renameTo(f);
-                    }
-                    con.disconnect();
-                }
-                if (f.exists()) {
-                    android.graphics.BitmapFactory.Options o = new android.graphics.BitmapFactory.Options();
-                    o.inPreferredConfig = android.graphics.Bitmap.Config.RGB_565;
-                    b = android.graphics.BitmapFactory.decodeFile(f.getAbsolutePath(), o);
-                }
-            } catch (Exception ignored) {
-            }
-            final android.graphics.Bitmap result = b;
-            synchronized (MEMORY) {
-                if (result != null) MEMORY.put(key, result);
-                // sem internet: tenta outra vez da próxima vez que o ecrã abrir
-                LOADING.remove(key);
-            }
-            if (result != null) postInvalidate();
-        });
-        return null;
+        anyTile = xs.length >= 2 && MapTiles.draw(c, this, minWx - offX / scale, minWy - offY / scale, scale);
     }
 
     @Override
@@ -284,11 +197,6 @@ public class RouteView extends View {
         c.drawCircle(hx, hy, 16f, dot);
         dot.setColor(0xFFFFFFFF);
         c.drawCircle(hx, hy, 7f, dot);
-        if (anyTile) {
-            credit.setColor(0x99C9CDD3);
-            credit.setTextSize(13f);
-            credit.setTextAlign(Paint.Align.RIGHT);
-            c.drawText("© OpenStreetMap · © CARTO", getWidth() - 18, getHeight() - 14, credit);
-        }
+        if (anyTile) MapTiles.credits(c, this);
     }
 }

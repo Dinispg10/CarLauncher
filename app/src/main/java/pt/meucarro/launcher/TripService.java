@@ -205,6 +205,7 @@ public class TripService extends Service {
         km = p.getFloat("trip_km", 0f);
         lastTime = p.getLong("trip_last_time", 0);
         if (start != 0) route.addAll(readRoute(currentRouteFile(this)));
+        Explore.init(this);
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationChannel channel = new NotificationChannel(CHANNEL, "Viagem", NotificationManager.IMPORTANCE_MIN);
             channel.setShowBadge(false);
@@ -281,6 +282,8 @@ public class TripService extends Service {
                 || (kmh > 3 && lastRoutePoint.distanceTo(location) >= 20f))) {
             route.add(new int[]{(int) Math.round(location.getLatitude() * 1e5),
                     (int) Math.round(location.getLongitude() * 1e5), Math.round(kmh)});
+            // Mapa de exploração: todas as estradas por onde o carro já passou
+            Explore.addPoint(this, location.getLatitude(), location.getLongitude(), lastRoutePoint == null);
             lastRoutePoint = location;
         }
         lastPoint = location;

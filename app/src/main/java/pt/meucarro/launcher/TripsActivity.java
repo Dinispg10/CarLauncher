@@ -47,6 +47,8 @@ public class TripsActivity extends Activity implements TripService.Listener, Obd
             TripService.Trip cur = TripService.current(this);
             if (cur != null) openRoute(cur.startMs);
         });
+        findViewById(R.id.btn_explore).setOnClickListener(v ->
+                startActivity(new android.content.Intent(this, ExploreActivity.class)));
         findViewById(R.id.engine_card).setOnClickListener(v ->
                 startActivity(new android.content.Intent(this, EngineActivity.class)));
         findViewById(R.id.btn_back).setOnClickListener(v -> finish());

@@ -74,6 +74,11 @@
             android:launchMode="singleTop" />
 
         <activity
+            android:name=".ExploreActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode"
+            android:exported="false" />
+
+        <activity
             android:name=".TripRouteActivity"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode"
             android:exported="false" />

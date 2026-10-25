@@ -28,6 +28,7 @@ import java.io.OutputStream;
 import java.util.List;
 
 public class MainActivity extends Activity implements MediaHub.Listener, TripService.Listener, Obd.Listener,
+        Explore.Listener,
         RadioService.Listener {
 
     // Botões configuráveis da barra
@@ -170,6 +171,7 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
         TripService.addListener(this);
         ObdService.start(this);
         Obd.addListener(this);
+        Explore.addListener(this);
         renderTrip();
         maybeShowEngineAlert();
         startLocation();
@@ -191,6 +193,7 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
         RadioService.removeListener(this);
         TripService.removeListener(this);
         Obd.removeListener(this);
+        Explore.removeListener(this);
         weatherHandler.removeCallbacks(weatherTick);
         weatherHandler.removeCallbacks(nightTick);
         if (fxView != null) fxView.setRunning(false);
@@ -538,6 +541,16 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
                 .button("Guardar", true, () ->
                         prefs.edit().putString("driver_name", holder[0].inputValue()).apply());
         holder[0].show();
+    }
+
+    @Override
+    public void onExploreChanged() {
+    }
+
+    @Override
+    public void onNewConcelho(String name, String district, int count) {
+        Celebrate.show(this, name, count + " de " + Concelhos.TOTAL + " concelhos  ·  " + district,
+                Ui.effectiveAccent(this, hub));
     }
 
     @Override
