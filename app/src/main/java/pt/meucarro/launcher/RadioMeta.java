@@ -109,15 +109,7 @@ public final class RadioMeta {
         art = null;
         AudioLog.add("Rádio: a tocar " + (newTitle == null ? "(sem nome da música)" : songLine()));
         fire();
-        if (newTitle != null && newArtist != null) {
-            final String key = ArtFetcher.key(newArtist, newTitle);
-            MAIN.post(() -> ArtFetcher.fetch(app, newArtist, newTitle, (k, bitmap) -> {
-                if (my == generation && key.equals(ArtFetcher.key(artist, title)) && bitmap != null) {
-                    art = bitmap;
-                    fire();
-                }
-            }));
-        }
+        // Sem capa: na rádio fica sempre o logótipo da estação (só o nome da música muda)
     }
 
     private static boolean eq(String a, String b) {
