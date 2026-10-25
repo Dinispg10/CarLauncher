@@ -488,6 +488,8 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
                 .section("Carro")
                 .item("Adaptador OBD2 (motor)", () -> Obd.savedMac(this) == null ? "Por ligar" : Obd.savedName(this),
                         true, () -> startActivity(new Intent(this, EngineActivity.class)))
+                .item("Guardar viagens a partir de", () -> TripsActivity.minLabel(TripService.minKm(this)), true,
+                        () -> TripsActivity.chooseMinKm(this, this::renderTrip))
                 .item("Ligar o rádio ao PC (ficheiros)", this::shareCarApps)
                 .section("Sistema")
                 .item("Procurar atualizações", Updater::currentVersion, true, () -> Updater.check(this, false))

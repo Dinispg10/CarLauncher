@@ -305,7 +305,13 @@ public class TripService extends Service {
     private static void archive(Context c, SharedPreferences p) {
         long start = p.getLong("trip_start", 0);
         float tripKm = p.getFloat("trip_km", 0f);
-        if (start == 0 || tripKm < 0.2f) return;
+        if (start == 0) return;
+        if (tripKm < Math.max(0.2f, minKm(c))) {
+            // Viagem curta demais para guardar: deita fora o percurso
+            //noinspection ResultOfMethodCallIgnored
+            currentRouteFile(c).delete();
+            return;
+        }
         long duration = p.getLong("trip_last_time", start) - start;
         // Junta ao histórico (mais recente primeiro, no máximo 10)
         JSONArray next = new JSONArray();
@@ -398,6 +404,37 @@ public class TripService extends Service {
         } catch (Exception ignored) {
         }
         return out;
+    }
+
+    /** Só guarda na lista as viagens com pelo menos estes km (0 = todas). */
+    public static float minKm(Context c) {
+        return prefs(c).getFloat("trip_min_km", 10f);
+    }
+
+    /** Muda o mínimo e apaga da lista as viagens que já lá estão e são mais curtas. */
+    public static void setMinKm(Context c, float km) {
+        prefs(c).edit().putFloat("trip_min_km", km).apply();
+        for (Trip t : history(c)) if (t.km < km) deleteTrip(c, t.startMs);
+        notifyListeners();
+    }
+
+    /** Apaga uma viagem da lista (e o percurso dela). */
+    public static void deleteTrip(Context c, long tripStart) {
+        SharedPreferences p = prefs(c);
+        try {
+            JSONArray old = new JSONArray(p.getString("trip_history", "[]"));
+            JSONArray next = new JSONArray();
+            for (int i = 0; i < old.length(); i++) {
+                JSONObject o = old.getJSONObject(i);
+                if (o.optLong("s") != tripStart) next.put(o);
+            }
+            p.edit().putString("trip_history", next.toString()).apply();
+            if (p.getLong("prev_start", 0) == tripStart) p.edit().remove("prev_start").apply();
+        } catch (Exception ignored) {
+        }
+        //noinspection ResultOfMethodCallIgnored
+        new File(new File(c.getFilesDir(), "routes"), tripStart + ".txt").delete();
+        notifyListeners();
     }
 
     public static void clearHistory(Context context) {

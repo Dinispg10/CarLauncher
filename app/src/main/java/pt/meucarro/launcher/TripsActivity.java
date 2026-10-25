@@ -196,8 +196,10 @@ public class TripsActivity extends Activity implements TripService.Listener, Obd
 
         list.removeAllViews();
         if (past.isEmpty()) {
-            TextView empty = text("Ainda não há viagens terminadas. Cada vez que o carro fica desligado "
-                    + "mais de 10 minutos, a viagem aparece aqui.", "500", 18, 0xFF9AA0A6);
+            float min = TripService.minKm(this);
+            TextView empty = text("Ainda não há viagens guardadas. Quando o carro fica desligado mais de 10 minutos, "
+                    + "a viagem aparece aqui" + (min > 0.2f ? " (se tiver pelo menos " + minLabel(min) + ")" : "")
+                    + ".", "500", 18, 0xFF9AA0A6);
             empty.setMaxLines(4);
             empty.setPadding(6, 8, 6, 0);
             list.addView(empty);
@@ -217,6 +219,10 @@ public class TripsActivity extends Activity implements TripService.Listener, Obd
         bg.setStroke(1, 0xFF22262D);
         row.setBackground(bg);
         row.setOnClickListener(v -> openRoute(trip.startMs));
+        row.setOnLongClickListener(v -> {
+            tripMenu(trip);
+            return true;
+        });
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 64);
         lp.bottomMargin = 10;
         row.setLayoutParams(lp);
@@ -236,6 +242,47 @@ public class TripsActivity extends Activity implements TripService.Listener, Obd
             row.addView(t, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         }
         return row;
+    }
+
+    /** Toque longo numa viagem: apagar esta, apagar todas ou escolher o mínimo de km. */
+    private void tripMenu(TripService.Trip trip) {
+        Sheet.create(this, whenLabel(trip.startMs) + " · " + TripService.formatKm(trip.km))
+                .item("Ver o percurso", () -> openRoute(trip.startMs))
+                .item("Apagar esta viagem", () -> {
+                    TripService.deleteTrip(this, trip.startMs);
+                    render();
+                })
+                .item("Guardar só viagens a partir de", () -> minLabel(TripService.minKm(this)), true, this::chooseMinKm)
+                .item("Apagar todas as viagens", () -> Sheet.confirm(this, "Apagar todas as viagens?",
+                        "A lista fica vazia. Os percursos guardados também são apagados.", "Apagar", () -> {
+                            TripService.clearHistory(this);
+                            render();
+                        }))
+                .button("Fechar", true, null)
+                .show();
+    }
+
+    static String minLabel(float km) {
+        return km <= 0.2f ? "Todas" : Math.round(km) + " km";
+    }
+
+    private void chooseMinKm() {
+        chooseMinKm(this, this::render);
+    }
+
+    /** Escolher o mínimo de km para uma viagem ficar guardada (também usado nas definições). */
+    static void chooseMinKm(Activity a, Runnable after) {
+        float[] values = {0f, 5f, 10f, 15f};
+        Sheet sheet = Sheet.create(a, "Guardar viagens a partir de")
+                .message("As viagens mais curtas não ficam na lista. As que já lá estão e são mais curtas "
+                        + "também são apagadas.");
+        for (float v : values) {
+            sheet.item(minLabel(v), () -> Math.abs(TripService.minKm(a) - v) < 0.01f ? "Em uso" : null, true, () -> {
+                TripService.setMinKm(a, v);
+                if (after != null) after.run();
+            });
+        }
+        sheet.button("Cancelar", false, null).show();
     }
 
     private void openRoute(long tripStart) {
