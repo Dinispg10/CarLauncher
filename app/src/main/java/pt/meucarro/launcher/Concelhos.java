@@ -9,12 +9,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Os 308 concelhos de Portugal (contornos simplificados da CAOP, Direção-Geral do Território).
+ * Os 278 concelhos de Portugal continental (contornos simplificados da CAOP, Direção-Geral do Território).
  * Diz em que concelho fica um ponto. Coordenadas guardadas em décimos de milésimo de grau.
  */
 public final class Concelhos {
 
-    public static final int TOTAL = 308;
+    public static final int TOTAL = 278; // só o continente
 
     public static final class Concelho {
         public final String name, district;

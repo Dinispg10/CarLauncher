@@ -145,8 +145,8 @@ public class ExploreActivity extends Activity implements Explore.Listener {
         concCard.addView(track, trlp);
         concCard.setOnClickListener(v -> showList());
 
-        LinearLayout distCard = card(side, "DISTRITOS E ILHAS");
-        distValue = text("0 / 20", "600", 30, 0xFFF2F3F5);
+        LinearLayout distCard = card(side, "DISTRITOS");
+        distValue = text("0 / 18", "600", 30, 0xFFF2F3F5);
         distCard.addView(distValue);
         distCard.setOnClickListener(v -> showList());
 
@@ -217,7 +217,7 @@ public class ExploreActivity extends Activity implements Explore.Listener {
         });
         java.util.Set<String> districts = new java.util.HashSet<>();
         for (String k : seen) districts.add(k.substring(k.indexOf('|') + 1));
-        distValue.setText(districts.size() + " / 20");
+        distValue.setText(districts.size() + " / 18");
         String last = Explore.lastNew(this);
         lastValue.setText(last.isEmpty() ? "—" : last);
         map.setAccent(accent);
