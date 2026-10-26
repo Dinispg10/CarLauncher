@@ -59,9 +59,68 @@ public final class CanBox {
         }
     };
 
+    private static final android.os.Handler MAIN = new android.os.Handler(android.os.Looper.getMainLooper());
+    private static Context appCtx;
+    private static String requestResult = "ainda não pedido";
+    private static int requests;
+
+    /**
+     * A caixa só manda os litros quando alguém os pede (a CanSetting pede de meio em meio segundo,
+     * mas só com o ecrã dela aberto). Pedimos nós de 5 em 5 s com a MESMA pergunta que ela faz:
+     * "dá-me a informação do carro" (comando 0x90, tipo 0x41/02). É só um pedido de leitura.
+     */
+    private static final Runnable POLL = new Runnable() {
+        @Override
+        public void run() {
+            if (total > 0 && System.currentTimeMillis() - carDataAt > 4000) request();
+            MAIN.postDelayed(this, 5000);
+        }
+    };
+
+    private static void request() {
+        byte[] withLen = {4, (byte) 0x90, 2, 0x41, 0x02};
+        // Formato da caixa "Raise": 2E 90 02 41 02 + soma de verificação
+        int sum = 0;
+        for (int i = 1; i < withLen.length; i++) sum += withLen[i] & 0xFF;
+        byte[] frame = {0x2E, (byte) 0x90, 2, 0x41, 0x02, (byte) ((sum & 0xFF) ^ 0xFF)};
+        requests++;
+        try {
+            // Rádios com o serviço CAN do sistema (é o caso deste)
+            Class<?> sm = Class.forName("android.os.ServiceManager");
+            android.os.IBinder b = (android.os.IBinder) sm.getMethod("getService", String.class)
+                    .invoke(null, "canbus_service");
+            if (b != null) {
+                Class<?> stub = Class.forName("android.os.ICanbusService$Stub");
+                Object svc = stub.getMethod("asInterface", android.os.IBinder.class).invoke(null, b);
+                svc.getClass().getMethod("setValue", byte[].class).invoke(svc, (Object) frame);
+                requestResult = "pedido pelo serviço do sistema";
+            } else {
+                requestResult = "sem serviço do sistema";
+            }
+        } catch (Throwable t) {
+            requestResult = "serviço do sistema falhou: " + t;
+        }
+        // Outros rádios: pelo aviso que a app CanBus usa quando não há serviço do sistema
+        try {
+            if (appCtx != null) {
+                android.content.Intent i = new android.content.Intent("canbus.intent.action.send.data");
+                i.putExtra("canbus_send_data", withLen);
+                appCtx.sendBroadcast(i);
+            }
+        } catch (Exception ignored) {
+        }
+    }
+
     /** Começa a escutar (chamado quando a app arranca). */
     public static synchronized void start(Context context) {
         if (registered) return;
+        appCtx = context.getApplicationContext();
+        android.content.SharedPreferences p = appCtx.getSharedPreferences("launcher", Context.MODE_PRIVATE);
+        if (Double.isNaN(fuelL) && p.contains("can_fuel")) {
+            fuelL = p.getFloat("can_fuel", 0f);
+            odometerKm = p.getFloat("can_odo", 0f);
+        }
+        MAIN.postDelayed(POLL, 3000);
         IntentFilter f = new IntentFilter();
         f.addAction("xy.auto.canbus.RX_DATA_CON");
         f.addAction("canbus.intent.action.msg");
@@ -100,6 +159,11 @@ public final class CanBox {
             fuelL = b[15] & 0xFF;
             fuelSource = "2E41/02";
             carDataAt = System.currentTimeMillis();
+            if (appCtx != null) {
+                // Guarda o último valor (ex.: para a app do iPhone e para abrir já com números)
+                appCtx.getSharedPreferences("launcher", Context.MODE_PRIVATE).edit()
+                        .putFloat("can_fuel", (float) fuelL).putFloat("can_odo", (float) odometerKm).apply();
+            }
             Obd.changed(); // os ecrãs do motor atualizam
         }
     }
@@ -117,6 +181,7 @@ public final class CanBox {
             sb.append("Depósito: ").append((int) fuelL).append(" L · km totais: ").append((long) odometerKm)
                     .append(" · exterior: ").append(outsideC).append(" °C · bateria: ").append(batteryV).append(" V\n");
         }
+        sb.append("Pedidos de dados: ").append(requests).append(" (").append(requestResult).append(")\n");
         sb.append("\n== Última mensagem de cada tipo ==\n");
         for (Map.Entry<String, String> e : LATEST.entrySet()) {
             sb.append(e.getKey()).append("  ×").append(COUNT.get(e.getKey())).append("   ").append(e.getValue()).append('\n');
