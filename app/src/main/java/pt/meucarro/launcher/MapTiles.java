@@ -123,7 +123,9 @@ public final class MapTiles {
                 //noinspection ResultOfMethodCallIgnored
                 dir.mkdirs();
                 File f = new File(dir, key + ".png");
-                if (!f.exists()) {
+                // Quadrados com mais de 90 dias voltam a ser descarregados (estradas novas)
+                boolean old90 = f.exists() && System.currentTimeMillis() - f.lastModified() > 90L * 24 * 3600 * 1000;
+                if (!f.exists() || old90) {
                     HttpURLConnection con = (HttpURLConnection) new URL(
                             LAYERS[layer] + z + "/" + y + "/" + x).openConnection();
                     con.setConnectTimeout(8000);
