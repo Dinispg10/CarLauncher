@@ -20,7 +20,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Mapa escuro (CARTO "dark", dados © OpenStreetMap) desenhado por baixo dos percursos.
+ * Mapa escuro (Esri "Dark Gray Canvas": fundo + nomes das ruas) desenhado por baixo dos percursos.
+ * (O CARTO passou a pedir chave; o da Esri não.)
  * Coordenadas do "mundo" em Web Mercator ao zoom 0 (256 px de lado). Os quadrados do mapa
  * ficam guardados no rádio, por isso um sítio já visto abre sem internet.
  */
@@ -30,7 +31,7 @@ public final class MapTiles {
     private static final Map<String, Bitmap> MEMORY = new LinkedHashMap<String, Bitmap>(48, 0.75f, true) {
         @Override
         protected boolean removeEldestEntry(Map.Entry<String, Bitmap> e) {
-            return size() > 40;
+            return size() > 60;
         }
     };
     private static final Set<String> LOADING = new HashSet<>();
@@ -52,7 +53,7 @@ public final class MapTiles {
 
     /** Zoom dos quadrados para uma escala (píxeis do ecrã por unidade do mundo). */
     public static int zoomFor(double scale) {
-        return (int) Math.max(2, Math.min(17, Math.floor(Math.log(scale) / Math.log(2))));
+        return (int) Math.max(2, Math.min(16, Math.floor(Math.log(scale) / Math.log(2))));
     }
 
     /**
@@ -68,17 +69,18 @@ public final class MapTiles {
         for (int tx = (int) Math.floor(left / tileWorld); tx <= (int) Math.floor(right / tileWorld); tx++) {
             for (int ty = (int) Math.floor(top / tileWorld); ty <= (int) Math.floor(bottom / tileWorld); ty++) {
                 if (tx < 0 || ty < 0 || tx > max || ty > max) continue;
-                Bitmap b = tile(v, zoom, tx, ty);
-                if (b == null) continue;
-                any = true;
                 float x0 = (float) ((tx * tileWorld - left) * scale);
                 float y0 = (float) ((ty * tileWorld - top) * scale);
                 float size = (float) (tileWorld * scale);
                 RECT.set(x0, y0, x0 + size + 0.5f, y0 + size + 0.5f);
-                c.drawBitmap(b, null, RECT, PAINT);
+                for (int layer = 0; layer < LAYERS.length; layer++) {
+                    Bitmap b = tile(v, layer, zoom, tx, ty);
+                    if (b == null) continue;
+                    if (layer == 0) any = true;
+                    c.drawBitmap(b, null, RECT, PAINT);
+                }
             }
         }
-        if (any) c.drawColor(0x22000000); // um pouco mais escuro, para as linhas sobressaírem
         return any;
     }
 
@@ -86,28 +88,44 @@ public final class MapTiles {
         CREDIT.setColor(0x99C9CDD3);
         CREDIT.setTextSize(13f);
         CREDIT.setTextAlign(Paint.Align.RIGHT);
-        c.drawText("© OpenStreetMap · © CARTO", v.getWidth() - 18, v.getHeight() - 14, CREDIT);
+        c.drawText("Esri, HERE, Garmin, © OpenStreetMap", v.getWidth() - 18, v.getHeight() - 14, CREDIT);
     }
 
-    private static Bitmap tile(View v, int z, int x, int y) {
-        final String key = z + "_" + x + "_" + y;
+    /** Camadas: fundo escuro e, por cima, os nomes (transparente). */
+    private static final String[] LAYERS = {
+            "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/",
+            "https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/",
+    };
+    private static boolean cleaned;
+
+    private static Bitmap tile(View v, int layer, int z, int x, int y) {
+        final String key = layer + "_" + z + "_" + x + "_" + y;
         synchronized (MEMORY) {
             Bitmap b = MEMORY.get(key);
             if (b != null) return b;
             if (LOADING.contains(key)) return null;
             LOADING.add(key);
         }
-        final File dir = new File(v.getContext().getFilesDir(), "tiles");
+        final File dir = new File(v.getContext().getFilesDir(), "tiles_esri");
+        final File old = new File(v.getContext().getFilesDir(), "tiles");
         POOL.execute(() -> {
+            if (!cleaned) {
+                // apaga os quadrados antigos do CARTO ("API KEY REQUIRED")
+                cleaned = true;
+                File[] fs = old.listFiles();
+                if (fs != null) for (File f : fs) //noinspection ResultOfMethodCallIgnored
+                    f.delete();
+                //noinspection ResultOfMethodCallIgnored
+                old.delete();
+            }
             Bitmap b = null;
             try {
                 //noinspection ResultOfMethodCallIgnored
                 dir.mkdirs();
                 File f = new File(dir, key + ".png");
                 if (!f.exists()) {
-                    String host = "abcd".charAt(Math.abs(x + y) % 4) + ".basemaps.cartocdn.com";
                     HttpURLConnection con = (HttpURLConnection) new URL(
-                            "https://" + host + "/dark_all/" + z + "/" + x + "/" + y + "@2x.png").openConnection();
+                            LAYERS[layer] + z + "/" + y + "/" + x).openConnection();
                     con.setConnectTimeout(8000);
                     con.setReadTimeout(10000);
                     con.setRequestProperty("User-Agent", "LauncherDoCarro/1.0 (Android)");
@@ -125,7 +143,7 @@ public final class MapTiles {
                 }
                 if (f.exists()) {
                     BitmapFactory.Options o = new BitmapFactory.Options();
-                    o.inPreferredConfig = Bitmap.Config.RGB_565;
+                    o.inPreferredConfig = layer == 0 ? Bitmap.Config.RGB_565 : Bitmap.Config.ARGB_8888;
                     b = BitmapFactory.decodeFile(f.getAbsolutePath(), o);
                 }
             } catch (Exception ignored) {

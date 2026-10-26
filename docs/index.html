@@ -124,13 +124,15 @@ const $ = id => document.getElementById(id);
 let key = (location.hash.match(/k=([A-Za-z0-9_-]{24,})/) || [])[1];
 try { if (key) localStorage.setItem('golfKey', key); else key = localStorage.getItem('golfKey'); } catch (e) {}
 
-const TILES = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-const ATTR = '© OpenStreetMap · © CARTO';
+// Mapa escuro da Esri (fundo + nomes); o CARTO passou a pedir chave
+const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/';
+const ATTR = 'Esri, HERE, Garmin, © OpenStreetMap';
 let data = null, maps = {}, carMarker = null, tripLayer = null, concLayer = null, concData = null, selTrip = null;
 
 function makeMap(id, center, zoom) {
   const m = L.map(id, {zoomControl: false, attributionControl: true}).setView(center, zoom);
-  L.tileLayer(TILES, {attribution: ATTR, subdomains: 'abcd', maxZoom: 19}).addTo(m);
+  L.tileLayer(ESRI + 'World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {attribution: ATTR, maxZoom: 19, maxNativeZoom: 16}).addTo(m);
+  L.tileLayer(ESRI + 'World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {maxZoom: 19, maxNativeZoom: 16}).addTo(m);
   return m;
 }
 
