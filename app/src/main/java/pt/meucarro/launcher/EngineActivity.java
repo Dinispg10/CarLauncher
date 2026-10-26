@@ -399,14 +399,15 @@ public class EngineActivity extends Activity implements Obd.Listener {
         setBar(boost, Obd.boost / 1.6, accent);
         boost.hint.setText(Double.isNaN(Obd.boost) && live ? "Não enviado pelo carro" : "");
 
-        // Bateria: com o motor a trabalhar deve estar entre 13,5 e 14,7 V
+        // Bateria: com o motor a trabalhar deve estar entre 12,3 e 15 V (carga inteligente da VW)
         battery.value.setText(fmt1(Obd.voltage));
         String bh = "";
         int bc = MUTED;
         if (!Double.isNaN(Obd.voltage)) {
             if (Obd.engineOn()) {
-                if (Obd.voltage < 13.0) {
-                    bh = "Não está a carregar bem";
+                // O Golf 6 tem alternador "inteligente": com a bateria cheia pode ficar nos 12,5–12,9 V
+                if (Obd.voltage < 12.2) {
+                    bh = "Não está a carregar";
                     bc = RED;
                 } else if (Obd.voltage > 15.0) {
                     bh = "Tensão alta";
