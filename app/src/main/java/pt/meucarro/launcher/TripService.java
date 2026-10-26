@@ -208,6 +208,7 @@ public class TripService extends Service {
         lastTime = p.getLong("trip_last_time", 0);
         if (start != 0) route.addAll(readRoute(currentRouteFile(this)));
         Explore.init(this);
+        CanBox.start(this); // escuta a caixa CAN (para os litros do depósito)
         CloudSync.trips(this);
         CloudSync.explore(this);
         if (Build.VERSION.SDK_INT >= 26) {

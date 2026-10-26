@@ -135,6 +135,8 @@ public final class ApkShare {
                     while ((n = fin.read(buf)) > 0) out.write(buf, 0, n);
                 }
                 out.flush();
+            } else if (path.startsWith("/can")) {
+                text(out, 200, "text/plain; charset=utf-8", CanBox.dump());
             } else if (path.startsWith("/obd")) {
                 text(out, 200, "text/plain; charset=utf-8", Obd.infoText() + "\n" + Obd.logText());
             } else if (path.startsWith("/info")) {
@@ -254,6 +256,8 @@ public final class ApkShare {
                         .append(pkg).append(".apk</a> (").append(f.length() / 1024).append(" KB)</li>");
             }
         }
+        sb.append("<li style='margin:10px 0'><a ").append(a).append(" href='/can.txt' download>can.txt</a>")
+                .append(" (mensagens da caixa CAN: ").append(CanBox.total()).append(")</li>");
         sb.append("<li style='margin:10px 0'><a ").append(a).append(" href='/obd.txt' download>obd.txt</a>")
                 .append(" (registo do adaptador do motor)</li>");
         sb.append("<li style='margin:10px 0'><a ").append(a).append(" href='/info.txt' download>info.txt</a>")

@@ -197,6 +197,13 @@ public class EngineActivity extends Activity implements Obd.Listener {
                             .message(first.toString().trim()).button("OK", true, null).show();
                 })
                 .item("Acertar o consumo", this::calibrate)
+                .item("Dados da caixa CAN (teste)", () -> {
+                    String[] lines = CanBox.dump().split("\n");
+                    StringBuilder first = new StringBuilder();
+                    for (int i = 0; i < Math.min(30, lines.length); i++) first.append(lines[i]).append('\n');
+                    Sheet.create(this, "Caixa CAN").width(940).message(first.toString().trim())
+                            .button("OK", true, null).show();
+                })
                 .item("Ler os erros outra vez", ObdService::readCodes)
                 .item("Testar o aviso da luz do motor (simulado)", () -> Sheet.confirm(this,
                         "Testar o aviso?",

@@ -127,6 +127,7 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
             detectApps(false);
         }
         buildUi();
+        CanBox.start(this);
         if (coldStart) {
             coldStart = false;
             carStarted();
