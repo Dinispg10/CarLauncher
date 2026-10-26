@@ -9,7 +9,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Golf">
 <meta name="theme-color" content="#0B0D10">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" id="touchIcon" href="apple-touch-icon.png">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -67,7 +67,11 @@ details p{color:var(--soft);font-size:16px;padding:0 2px 10px;line-height:1.4}
 <div id="app" style="display:none">
   <div class="head">
     <div><h1>Golf</h1><div class="sub" id="updated">—</div></div>
-    <div class="pill"><span class="dot" id="sdot"></span><span id="stext">—</span></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div class="pill"><span class="dot" id="sdot"></span><span id="stext">—</span></div>
+      <button class="pill" id="iconBtn" style="padding:7px 11px;font-family:inherit" aria-label="Escolher ícone">⚙︎</button>
+    </div>
+    <input type="file" id="iconFile" accept="image/*" style="display:none">
   </div>
 
   <!-- Carro -->
@@ -293,6 +297,36 @@ document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
     if (b.dataset.p === 'p-explore' && data) renderExplore();
   }, 50);
 });
+
+// Ícone próprio: escolhido nas Fotos, fica só neste iPhone (nunca é enviado para lado nenhum)
+function applyIcon() {
+  try { const d = localStorage.getItem('golfIcon'); if (d) $('touchIcon').href = d; } catch (e) {}
+}
+applyIcon();
+$('iconBtn').onclick = () => {
+  if (navigator.standalone) {
+    alert('Para mudar o ícone: abra esta página no Safari (pelo QR do rádio), toque em ⚙︎ e escolha a imagem. Depois remova este ícone e adicione de novo ao ecrã principal.');
+    return;
+  }
+  $('iconFile').click();
+};
+$('iconFile').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const img = new Image();
+  img.onload = () => {
+    const c = document.createElement('canvas'); c.width = c.height = 180;
+    const g = c.getContext('2d');
+    g.fillStyle = '#0B0D10'; g.fillRect(0, 0, 180, 180);
+    const s = Math.min(180 / img.width, 180 / img.height) * 0.86; // cabe inteiro, com margem
+    const w = img.width * s, h = img.height * s;
+    g.drawImage(img, (180 - w) / 2, (180 - h) / 2, w, h);
+    const data = c.toDataURL('image/png');
+    try { localStorage.setItem('golfIcon', data); } catch (err) {}
+    $('touchIcon').href = data;
+    alert('Ícone escolhido ✓\nAgora: botão Partilhar → "Adicionar ao ecrã principal".');
+  };
+  img.src = URL.createObjectURL(f);
+};
 
 if (!key || !DB) {
   $('setup').style.display = '';
