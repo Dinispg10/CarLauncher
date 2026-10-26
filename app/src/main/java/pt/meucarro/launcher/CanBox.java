@@ -28,9 +28,18 @@ public final class CanBox {
     private static long total;
     private static long lastAt;
 
-    /** Litros no depósito, se uma mensagem conhecida os trouxer (NaN se não). */
-    public static volatile double fuelL = Double.NaN;
+    /** Dados do painel do Golf, lidos da caixa CAN (NaN se ainda não chegaram). */
+    public static volatile double fuelL = Double.NaN;      // litros no depósito
+    public static volatile double odometerKm = Double.NaN; // km totais do carro
+    public static volatile double outsideC = Double.NaN;   // temperatura exterior
+    public static volatile double batteryV = Double.NaN;   // tensão da bateria (mais exata que a do adaptador)
+    public static volatile long carDataAt;
     public static volatile String fuelSource = "";
+
+    /** Os dados da caixa são recentes (menos de 30 s)? */
+    public static boolean fresh() {
+        return System.currentTimeMillis() - carDataAt < 30000;
+    }
 
     private CanBox() {
     }
@@ -77,16 +86,26 @@ public final class CanBox {
         decode(b);
     }
 
-    /** Formatos conhecidos da app CanBus para VW (ver análise): litros no depósito. */
+    /**
+     * Caixa CAN "Raise" para VW PQ (Golf 6), mensagem 2E 41 com subtipo 02:
+     * 2E 41 0D 02 [rpm 2B] [vel ×100 2B] [bateria ×100 2B] [temp. exterior ×10 2B] [km totais 3B] [litros] [soma]
+     * Confirmado no carro: 781 rpm · 13,95 V · 282 327 km · 8 L.
+     */
     private static void decode(byte[] b) {
-        // "Magotan/Passat" (Raise): mensagem com 2.º byte 0xFE → litros no 4.º byte
-        if (b.length >= 11 && (b[1] & 0xFF) == 0xFE) {
-            int l = b[3] & 0x7F;
-            if (l > 0 && l <= 80) {
-                fuelL = l;
-                fuelSource = "FE";
-            }
+        if (b.length >= 16 && (b[0] & 0xFF) == 0x2E && (b[1] & 0xFF) == 0x41 && (b[3] & 0xFF) == 0x02) {
+            batteryV = u16(b, 8) / 100.0;
+            int t = u16(b, 10);
+            outsideC = (t & 0x8000) != 0 ? -((65536 - t) / 10.0) : t / 10.0;
+            odometerKm = ((b[12] & 0xFF) << 16) | ((b[13] & 0xFF) << 8) | (b[14] & 0xFF);
+            fuelL = b[15] & 0xFF;
+            fuelSource = "2E41/02";
+            carDataAt = System.currentTimeMillis();
+            Obd.changed(); // os ecrãs do motor atualizam
         }
+    }
+
+    private static int u16(byte[] b, int i) {
+        return ((b[i] & 0xFF) << 8) | (b[i + 1] & 0xFF);
     }
 
     public static synchronized String dump() {
@@ -94,7 +113,10 @@ public final class CanBox {
         sb.append("Mensagens da caixa CAN recebidas: ").append(total);
         if (lastAt > 0) sb.append(" (última às ").append(TIME.format(new Date(lastAt))).append(")");
         sb.append('\n');
-        if (!Double.isNaN(fuelL)) sb.append("Litros (palpite ").append(fuelSource).append("): ").append(fuelL).append('\n');
+        if (!Double.isNaN(fuelL)) {
+            sb.append("Depósito: ").append((int) fuelL).append(" L · km totais: ").append((long) odometerKm)
+                    .append(" · exterior: ").append(outsideC).append(" °C · bateria: ").append(batteryV).append(" V\n");
+        }
         sb.append("\n== Última mensagem de cada tipo ==\n");
         for (Map.Entry<String, String> e : LATEST.entrySet()) {
             sb.append(e.getKey()).append("  ×").append(COUNT.get(e.getKey())).append("   ").append(e.getValue()).append('\n');

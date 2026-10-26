@@ -82,6 +82,10 @@ details p{color:var(--soft);font-size:16px;padding:0 2px 10px;line-height:1.4}
       <div class="card"><div class="lbl">TEMPERATURA</div><div class="big" id="cool">—</div></div>
       <div class="card"><div class="lbl">BATERIA</div><div class="big" id="volt">—</div></div>
     </div>
+    <div class="grid">
+      <div class="card"><div class="lbl">DEPÓSITO</div><div class="big" id="fuel">—</div><div class="muted" id="fuelHint" style="font-size:14px"></div></div>
+      <div class="card"><div class="lbl">KM TOTAIS</div><div class="big" id="odo" style="font-size:28px">—</div><div class="muted" id="outT" style="font-size:14px"></div></div>
+    </div>
     <div class="card" id="tripNow" style="display:none"></div>
   </section>
 
@@ -198,6 +202,12 @@ function render() {
   $('cool').innerHTML = e.coolant != null ? Math.round(e.coolant) + '<span class="unit">°C</span>' : '—';
   $('volt').innerHTML = e.volt != null ? e.volt.toLocaleString(PT, {minimumFractionDigits: 1}) + '<span class="unit">V</span>' : '—';
 
+  const car = s.car || {};
+  $('fuel').innerHTML = car.fuel != null ? Math.round(car.fuel) + '<span class="unit">L</span>' : '—';
+  $('fuelHint').textContent = car.fuel != null && car.fuel <= 7 ? '⚠ Reserva' : '';
+  $('fuelHint').style.color = 'var(--red)';
+  $('odo').innerHTML = car.odo != null ? Math.round(car.odo).toLocaleString(PT) + '<span class="unit">km</span>' : '—';
+  $('outT').textContent = car.out != null ? 'Lá fora: ' + car.out.toLocaleString(PT, {maximumFractionDigits: 1}) + ' °C' : '';
   const t = s.trip;
   if (t && fresh) {
     $('tripNow').style.display = '';

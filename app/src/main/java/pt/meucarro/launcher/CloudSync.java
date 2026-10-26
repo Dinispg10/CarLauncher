@@ -141,7 +141,17 @@ public final class CloudSync {
             }
             e.put("codes", codes);
             e.put("checked", Obd.codesReadAt);
+            if (CanBox.fresh()) putNum(e, "volt", CanBox.batteryV);
             s.put("engine", e);
+            // Painel do Golf (caixa CAN): litros, km totais e temperatura exterior
+            if (!Double.isNaN(CanBox.fuelL)) {
+                JSONObject car = new JSONObject();
+                putNum(car, "fuel", CanBox.fuelL);
+                putNum(car, "odo", CanBox.odometerKm);
+                putNum(car, "out", CanBox.outsideC);
+                car.put("at", CanBox.carDataAt);
+                s.put("car", car);
+            }
             TripService.Trip t = TripService.current(c);
             if (t != null) {
                 JSONObject tr = new JSONObject();

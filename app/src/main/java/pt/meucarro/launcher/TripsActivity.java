@@ -131,10 +131,14 @@ public class TripsActivity extends Activity implements TripService.Listener, Obd
                 return;
             }
             StringBuilder sb = new StringBuilder();
-            if (!Double.isNaN(Obd.coolant)) sb.append(Math.round(Obd.coolant)).append(" °C");
-            if (!Double.isNaN(Obd.voltage)) {
+            if (!Double.isNaN(CanBox.fuelL)) sb.append(Math.round(CanBox.fuelL)).append(" L");
+            if (!Double.isNaN(Obd.coolant)) {
                 if (sb.length() > 0) sb.append(" · ");
-                sb.append(String.format(PT, "%.1f V", Obd.voltage));
+                sb.append(Math.round(Obd.coolant)).append(" °C");
+            }
+            if (sb.length() < 12 && !Double.isNaN(Obd.voltage)) {
+                if (sb.length() > 0) sb.append(" · ");
+                sb.append(String.format(PT, "%.1f V", CanBox.fresh() ? CanBox.batteryV : Obd.voltage));
             }
             line.setText(sb.length() == 0 ? "Ligado" : sb.toString());
             line.setTextColor(0xFFF2F3F5);

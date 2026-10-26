@@ -418,23 +418,26 @@ public class EngineActivity extends Activity implements Obd.Listener {
         boost.hint.setText(Double.isNaN(Obd.boost) && live ? "Não enviado pelo carro" : "");
 
         // Bateria: com o motor a trabalhar deve estar entre 12,3 e 15 V (carga inteligente da VW)
-        battery.value.setText(fmt1(Obd.voltage));
+        // A caixa CAN dá a tensão do painel (exata); o adaptador lê ~1 V abaixo na ficha OBD
+        boolean canV = CanBox.fresh() && !Double.isNaN(CanBox.batteryV);
+        double volt = canV ? CanBox.batteryV : Obd.voltage;
+        battery.value.setText(fmt1(volt));
         String bh = "";
         int bc = MUTED;
-        if (!Double.isNaN(Obd.voltage)) {
+        if (!Double.isNaN(volt)) {
             if (Obd.engineOn()) {
-                // O Golf 6 tem alternador "inteligente": com a bateria cheia pode ficar nos 12,5–12,9 V
-                if (Obd.voltage < 12.2) {
+                // O Golf 6 tem alternador "inteligente": com a bateria cheia pode ficar abaixo dos 13 V
+                if (volt < (canV ? 12.7 : 12.2)) {
                     bh = "Não está a carregar";
                     bc = RED;
-                } else if (Obd.voltage > 15.0) {
+                } else if (volt > 15.2) {
                     bh = "Tensão alta";
                     bc = YELLOW;
                 } else {
                     bh = "A carregar";
                     bc = GREEN;
                 }
-            } else if (Obd.voltage < 12.0) {
+            } else if (volt < (canV ? 12.0 : 11.0)) {
                 bh = "Bateria fraca";
                 bc = RED;
             } else {
@@ -458,7 +461,18 @@ public class EngineActivity extends Activity implements Obd.Listener {
         tripL.value.setText(trip == null ? "—" : fmt1(trip.l100));
         tripL.hint.setText(trip == null ? "" : TripService.formatKm(trip.km));
 
-        if (!Double.isNaN(Obd.fuelLevel)) {
+        if (!Double.isNaN(CanBox.fuelL)) {
+            // Litros do painel (caixa CAN) e autonomia pela média de consumo medida pelo adaptador
+            double avg = Obd.totalKm(this) > 30 ? Obd.totalFuelL(this) / Obd.totalKm(this) * 100 : 6.0;
+            if (avg < 3 || avg > 15) avg = 6.0;
+            int range = (int) Math.round(CanBox.fuelL / avg * 100);
+            fuel.label.setText("DEPÓSITO");
+            fuel.value.setText(fmt0(CanBox.fuelL));
+            fuel.unit.setText("L");
+            boolean reserve = CanBox.fuelL <= 7;
+            fuel.hint.setText((reserve ? "⚠ Reserva · " : "") + "≈ " + range + " km");
+            fuel.hint.setTextColor(reserve ? RED : MUTED);
+        } else if (!Double.isNaN(Obd.fuelLevel)) {
             fuel.label.setText("DEPÓSITO");
             fuel.value.setText(fmt0(Obd.fuelLevel * Obd.TANK_L / 100));
             fuel.unit.setText("L");
