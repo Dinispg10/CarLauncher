@@ -127,6 +127,8 @@ const PT = 'pt-PT';
 const $ = id => document.getElementById(id);
 let key = (location.hash.match(/k=([A-Za-z0-9_-]{24,})/) || [])[1];
 try { if (key) localStorage.setItem('golfKey', key); else key = localStorage.getItem('golfKey'); } catch (e) {}
+// Mantém o código no endereço, para "Adicionar ao ecrã principal" levar a ligação ao carro
+if (key && !location.hash.includes('k=')) history.replaceState(null, '', '#k=' + key);
 
 // Mapa escuro da Esri (fundo + nomes); o CARTO passou a pedir chave
 const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/';
