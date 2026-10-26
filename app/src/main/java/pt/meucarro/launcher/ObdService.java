@@ -97,7 +97,33 @@ public class ObdService extends Service {
                     NotificationManager.IMPORTANCE_HIGH);
             nm.createNotificationChannel(alert);
         }
+        // Se o adaptador pedir código ao emparelhar, responde sozinho (1234, o dos Vgate; depois 0000)
+        android.content.IntentFilter f = new android.content.IntentFilter(BluetoothDevice.ACTION_PAIRING_REQUEST);
+        f.setPriority(android.content.IntentFilter.SYSTEM_HIGH_PRIORITY - 1);
+        registerReceiver(pairing, f);
     }
+
+    private int pinTries;
+    private final android.content.BroadcastReceiver pairing = new android.content.BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            BluetoothDevice d = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+            String mac = Obd.savedMac(context);
+            if (d == null || mac == null || !mac.equals(d.getAddress())) return;
+            int variant = intent.getIntExtra(BluetoothDevice.EXTRA_PAIRING_VARIANT, -1);
+            Obd.log("O adaptador pediu emparelhamento (tipo " + variant + ")");
+            if (variant == BluetoothDevice.PAIRING_VARIANT_PIN) {
+                String pin = pinTries++ % 2 == 0 ? "1234" : "0000";
+                try {
+                    if (d.setPin(pin.getBytes("US-ASCII"))) {
+                        Obd.log("Código " + pin + " enviado");
+                        abortBroadcast();
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        }
+    };
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
@@ -117,6 +143,10 @@ public class ObdService extends Service {
     @Override
     public void onDestroy() {
         stopped = true;
+        try {
+            unregisterReceiver(pairing);
+        } catch (Exception ignored) {
+        }
         closeSocket();
         if (worker != null) worker.interrupt();
         if (running == this) running = null;
@@ -191,6 +221,7 @@ public class ObdService extends Service {
                 adapter.cancelDiscovery();
             } catch (Exception ignored) {
             }
+            ensureBonded(device);
             socket = open(device);
             if (socket == null) {
                 failures++;
@@ -217,21 +248,57 @@ public class ObdService extends Service {
         stopSelf();
     }
 
+    /** Mostra no registo o estado do adaptador e, se não estiver emparelhado, tenta emparelhar. */
+    private void ensureBonded(BluetoothDevice d) {
+        int bond = BluetoothDevice.BOND_NONE;
+        String name = "?";
+        boolean spp = false;
+        try {
+            bond = d.getBondState();
+            name = d.getName();
+            android.os.ParcelUuid[] uuids = d.getUuids();
+            if (uuids != null) for (android.os.ParcelUuid u : uuids) if (SPP.equals(u.getUuid())) spp = true;
+        } catch (Exception ignored) {
+        }
+        Obd.log("Adaptador \"" + name + "\" " + d.getAddress() + " · "
+                + (bond == BluetoothDevice.BOND_BONDED ? "emparelhado" : bond == BluetoothDevice.BOND_BONDING
+                ? "a emparelhar" : "NÃO emparelhado") + " · porta série anunciada: " + (spp ? "sim" : "não/desconhecido"));
+        if (bond != BluetoothDevice.BOND_NONE) return;
+        try {
+            Obd.log("A pedir emparelhamento…");
+            d.createBond();
+            for (int i = 0; i < 40 && !stopped; i++) { // até 20 s
+                sleep(500);
+                int b = d.getBondState();
+                if (b == BluetoothDevice.BOND_BONDED) {
+                    Obd.log("Emparelhado ✓");
+                    return;
+                }
+                if (b == BluetoothDevice.BOND_NONE && i > 4) break;
+            }
+            Obd.log("Não emparelhou (o adaptador está aceso e com o motor ligado?)");
+        } catch (Exception e) {
+            Obd.log("Erro ao emparelhar: " + e.getMessage());
+        }
+    }
+
     private BluetoothSocket open(BluetoothDevice d) {
-        for (int i = 0; i < 3 && !stopped; i++) {
+        String[] ways = {"segura", "sem segurança", "canal 1", "canal 1 sem segurança"};
+        for (int i = 0; i < ways.length && !stopped; i++) {
             BluetoothSocket s = null;
             try {
                 if (i == 0) s = d.createRfcommSocketToServiceRecord(SPP);
                 else if (i == 1) s = d.createInsecureRfcommSocketToServiceRecord(SPP);
                 else {
-                    Method m = d.getClass().getMethod("createRfcommSocket", int.class);
+                    Method m = d.getClass().getMethod(i == 2 ? "createRfcommSocket" : "createInsecureRfcommSocket",
+                            int.class);
                     s = (BluetoothSocket) m.invoke(d, 1);
                 }
                 s.connect();
-                Obd.log("Ligado ao adaptador (" + (i == 0 ? "segura" : i == 1 ? "sem segurança" : "canal 1") + ")");
+                Obd.log("Ligado ao adaptador (" + ways[i] + ") ✓");
                 return s;
             } catch (Exception e) {
-                if (i == 0) Obd.log("Ligação falhou: " + e.getMessage());
+                Obd.log("· forma " + ways[i] + " falhou: " + e.getMessage());
                 try {
                     if (s != null) s.close();
                 } catch (Exception ignored) {
