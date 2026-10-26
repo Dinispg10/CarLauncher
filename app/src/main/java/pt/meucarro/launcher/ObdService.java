@@ -322,12 +322,25 @@ public class ObdService extends Service {
     private void session() throws Exception {
         timeouts = 0;
         setState(Obd.State.INIT, "a preparar o adaptador");
+        // Limpa restos de uma ligação anterior antes de reiniciar o adaptador
+        out.write("\r".getBytes("US-ASCII"));
+        out.flush();
+        sleep(400);
+        drain();
         String id = cmd("ATZ", 5000);
-        sleep(500);
+        sleep(1500); // o reinício demora; o que chegar entretanto é deitado fora
+        drain();
         if (id != null && id.contains("ELM")) {
             Obd.elmVersion = id.substring(id.indexOf("ELM")).split("[\\r\\n]")[0].trim();
         }
-        for (String c : new String[]{"ATE0", "ATL0", "ATS0", "ATH0", "ATAT1", "ATSP0"}) cmd(c, 2000);
+        // Sem eco (às vezes o primeiro pedido perde-se logo a seguir ao reinício)
+        for (int i = 0; i < 3; i++) {
+            String r = cmd("ATE0", 2000);
+            if (r != null && r.contains("OK")) break;
+            sleep(300);
+            drain();
+        }
+        for (String c : new String[]{"ATL0", "ATS0", "ATH0", "ATAT1", "ATSP0"}) cmd(c, 2000);
 
         // Encontrar o carro (com a ignição desligada não há resposta: fica a tentar)
         while (!stopped) {
@@ -350,6 +363,8 @@ public class ObdService extends Service {
         Obd.protocol = (dp == null ? "" : dp.trim()) + " (" + dpn + ")";
         String num = dpn.replace("A", "");
         can = num.equals("6") || num.equals("7") || num.equals("8") || num.equals("9");
+        // Fixa o protocolo encontrado: com a ignição desligada o adaptador não fica a "procurar" outra vez
+        if (num.matches("[1-9]")) cmd("ATSP" + num, 2000);
 
         if (supportedPids.contains("20")) addSupported(0x20, pid(cmd("0120", 3000), "20"));
         if (supportedPids.contains("40")) addSupported(0x40, pid(cmd("0140", 3000), "40"));
@@ -459,7 +474,7 @@ public class ObdService extends Service {
     }
 
     private double value(String p, Formula f) throws IOException {
-        String r = cmd("01" + p, 1500);
+        String r = cmd("01" + p, 2500);
         int[] b = pid(r, p);
         if (b == null || b.length == 0) return Double.NaN;
         try {
@@ -608,11 +623,34 @@ public class ObdService extends Service {
         boolean quiet = c.length() == 4 && c.startsWith("01") && !c.equals("0100") && !c.equals("0101");
         if (!quiet || !done) Obd.log("→ " + c + "   ← " + (done ? resp.replace('\r', ' ').replace('\n', ' ') : "(sem resposta)"));
         if (!done) {
-            if (++timeouts >= 4) throw new IOException("o adaptador deixou de responder");
+            // Interrompe o pedido que ficou pendurado, para a resposta atrasada não baralhar o próximo
+            out.write("\r".getBytes("US-ASCII"));
+            out.flush();
+            long until = System.currentTimeMillis() + 1200;
+            while (System.currentTimeMillis() < until && !stopped) {
+                if (in.available() > 0) {
+                    int r = in.read(buf);
+                    boolean prompt = false;
+                    for (int k = 0; k < r; k++) if (buf[k] == '>') prompt = true;
+                    if (prompt) break;
+                } else {
+                    sleep(10);
+                }
+            }
+            drain();
+            // Só conta para "adaptador morto" se nem os comandos do próprio adaptador (AT) respondem
+            if (c.startsWith("AT") && ++timeouts >= 3) throw new IOException("o adaptador deixou de responder");
             return null;
         }
         timeouts = 0;
         return resp;
+    }
+
+    private void drain() throws IOException {
+        while (in.available() > 0) {
+            //noinspection ResultOfMethodCallIgnored
+            in.read(buf);
+        }
     }
 
     private static String clean(String r) {
