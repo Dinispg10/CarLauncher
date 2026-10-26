@@ -22,6 +22,8 @@ android {
         versionCode ciVersionCode ? ciVersionCode.toInteger() : 29
         versionName ciVersionName ?: '3.13'
         buildConfigField "String", "UPDATE_REPO", "\"${updateRepo}\""
+        // Base de dados Firebase da app Golf no iPhone (gradle.properties: cloudUrl)
+        buildConfigField "String", "CLOUD_URL", "\"${project.findProperty('cloudUrl') ?: ''}\""
     }
 
     buildFeatures {

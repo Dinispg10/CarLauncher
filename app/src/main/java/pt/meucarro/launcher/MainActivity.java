@@ -17,7 +17,9 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Gravity;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -493,6 +495,7 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
                         true, () -> startActivity(new Intent(this, EngineActivity.class)))
                 .item("Guardar viagens a partir de", () -> TripsActivity.minLabel(TripService.minKm(this)), true,
                         () -> TripsActivity.chooseMinKm(this, this::renderTrip))
+                .item("App Golf no iPhone", this::showPhoneApp)
                 .item("Ligar o rádio ao PC (ficheiros)", this::shareCarApps)
                 .section("Sistema")
                 .item("Procurar atualizações", Updater::currentVersion, true, () -> Updater.check(this, false))
@@ -505,6 +508,33 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
                 })
                 .button("Fechar", true, null)
                 .show();
+    }
+
+    /** Código QR para abrir a app Golf (página) no iPhone. */
+    private void showPhoneApp() {
+        if (!CloudSync.configured()) {
+            Sheet.message(this, "App Golf no iPhone",
+                    "Ainda falta ligar a base de dados (o passo do Firebase). Depois disso, numa atualização, "
+                            + "aparece aqui o código QR.");
+            return;
+        }
+        LinearLayout box = new LinearLayout(this);
+        box.setGravity(Gravity.CENTER);
+        ImageView qr = new ImageView(this);
+        qr.setImageBitmap(CloudSync.qr(this, 8));
+        qr.setScaleType(ImageView.ScaleType.FIT_CENTER);
+        box.addView(qr, new LinearLayout.LayoutParams(300, 300));
+        box.setPadding(0, 6, 0, 6);
+        Sheet.create(this, "App Golf no iPhone").width(860)
+                .message("1) Aponte a câmara do iPhone a este código e toque no link.\n"
+                        + "2) No Safari: botão Partilhar → \"Adicionar ao ecrã principal\".\n"
+                        + "O link é secreto: quem o tiver vê onde está o carro.")
+                .view(box)
+                .button("OK", true, null)
+                .show();
+        CloudSync.status(this, null, true);
+        CloudSync.trips(this);
+        CloudSync.explore(this);
     }
 
     /** Mostra um endereço para descarregar as apps do carro no PC (mesma rede Wi-Fi). Só lê. */

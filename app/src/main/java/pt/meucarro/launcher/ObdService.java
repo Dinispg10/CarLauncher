@@ -547,6 +547,7 @@ public class ObdService extends Service {
         for (String c : now) if (!acked.contains(c)) isNew = true;
         if (!isNew) return;
         Obd.alertPending = true;
+        CloudSync.status(this, null, true);
         StringBuilder text = new StringBuilder();
         for (String c : now) {
             if (text.length() > 0) text.append(" · ");

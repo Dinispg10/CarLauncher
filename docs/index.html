@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Golf</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Golf">
+<meta name="theme-color" content="#0B0D10">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+@font-face{font-family:R;font-weight:500;src:url(fonts/rajdhani-500.ttf)}
+@font-face{font-family:R;font-weight:600;src:url(fonts/rajdhani-600.ttf)}
+@font-face{font-family:R;font-weight:700;src:url(fonts/rajdhani-700.ttf)}
+:root{--bg:#0B0D10;--card:#13161B;--line:#22262D;--text:#F2F3F5;--soft:#C9CDD3;--muted:#9AA0A6;--acc:#5EEAD4;--red:#F87171;--yellow:#FBBF24;--green:#4ADE80}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg);color:var(--text);font-family:R,-apple-system,system-ui,sans-serif;font-weight:500}
+body{min-height:100vh;padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 86px)}
+h1{font-weight:700;font-size:34px;letter-spacing:.01em}
+.sub{color:var(--muted);font-size:16px}
+.head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:14px}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:20px;background:var(--card);border:1px solid var(--line);font-weight:600;font-size:15px;color:var(--soft)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:16px 18px;margin-bottom:12px}
+.lbl{font-weight:700;font-size:12px;letter-spacing:.14em;color:var(--acc);margin-bottom:6px}
+.big{font-weight:600;font-size:34px;line-height:1.05}
+.unit{font-weight:500;font-size:16px;color:var(--muted);margin-left:4px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.grid .card{margin:0}
+.map{height:260px;border-radius:22px;overflow:hidden;border:1px solid var(--line);margin-bottom:10px;background:#0e1013}
+.btns{display:flex;gap:10px;margin-bottom:12px}
+.btn{flex:1;text-align:center;padding:12px;border-radius:16px;background:var(--card);border:1px solid var(--line);color:var(--text);font-weight:600;font-size:16px;text-decoration:none}
+.btn.acc{background:var(--acc);color:#0B0D10;border:0}
+.row{display:flex;align-items:center;padding:13px 4px;border-bottom:1px solid var(--line);font-size:17px}
+.row:last-child{border-bottom:0}
+.row .w{flex:1.6;font-weight:600}.row .v{flex:1;text-align:right;color:var(--soft)}
+.code{display:flex;gap:12px;padding:8px 0}.code b{font-size:20px;min-width:70px}
+.muted{color:var(--muted)}
+.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:rgba(11,13,16,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid var(--line);padding:8px 8px calc(env(safe-area-inset-bottom) + 8px);z-index:1000}
+.tab{flex:1;text-align:center;color:var(--muted);font-weight:600;font-size:13px;padding:4px 0;border:0;background:none;font-family:inherit}
+.tab .i{font-size:22px;display:block;margin-bottom:2px;filter:grayscale(1);opacity:.7}
+.tab.on{color:var(--acc)}.tab.on .i{filter:none;opacity:1}
+.page{display:none}.page.on{display:block}
+.bar{height:6px;border-radius:3px;background:var(--line);margin-top:8px;overflow:hidden}.bar>div{height:100%;background:var(--acc);border-radius:3px}
+.empty{padding:40px 10px;text-align:center;color:var(--muted);font-size:17px;line-height:1.4}
+.legend{display:flex;gap:14px;font-size:13px;color:var(--muted);margin:-2px 4px 12px}.legend i{display:inline-block;width:16px;height:5px;border-radius:3px;margin-right:5px;vertical-align:middle}
+.leaflet-container{background:#0e1013;font-family:R,sans-serif}
+.leaflet-control-attribution{background:rgba(11,13,16,.7)!important;color:#777!important;font-size:10px}
+.leaflet-control-attribution a{color:#999!important}
+.car{width:22px;height:22px;border-radius:50%;background:var(--acc);border:3px solid #0B0D10;box-shadow:0 0 0 6px rgba(94,234,212,.25),0 0 18px rgba(94,234,212,.7)}
+details summary{list-style:none;cursor:pointer;font-weight:600;font-size:17px;padding:10px 2px}
+details summary::-webkit-details-marker{display:none}
+details p{color:var(--soft);font-size:16px;padding:0 2px 10px;line-height:1.4}
+</style>
+</head>
+<body>
+<div id="setup" class="empty" style="display:none">
+  <h1 style="margin-bottom:12px">Golf</h1>
+  Abra esta página pelo <b>código QR</b> do rádio:<br>⚙ → Carro → <b>App Golf no iPhone</b>.
+</div>
+
+<div id="app" style="display:none">
+  <div class="head">
+    <div><h1>Golf</h1><div class="sub" id="updated">—</div></div>
+    <div class="pill"><span class="dot" id="sdot"></span><span id="stext">—</span></div>
+  </div>
+
+  <!-- Carro -->
+  <section class="page on" id="p-car">
+    <div class="map" id="map"></div>
+    <div class="btns">
+      <a class="btn acc" id="apple">Abrir no Mapas</a>
+      <a class="btn" id="google">Google Maps</a>
+    </div>
+    <div class="card" id="mil"></div>
+    <div class="grid">
+      <div class="card"><div class="lbl">TEMPERATURA</div><div class="big" id="cool">—</div></div>
+      <div class="card"><div class="lbl">BATERIA</div><div class="big" id="volt">—</div></div>
+    </div>
+    <div class="card" id="tripNow" style="display:none"></div>
+  </section>
+
+  <!-- Viagens -->
+  <section class="page" id="p-trips">
+    <div class="map" id="tmap"></div>
+    <div class="legend"><span><i style="background:#60A5FA"></i>até 50</span><span><i style="background:#4ADE80"></i>50–90</span><span><i style="background:#FB923C"></i>mais de 90 km/h</span></div>
+    <div class="card" id="tripInfo" style="display:none"></div>
+    <div class="card" style="padding:4px 14px" id="tripList"></div>
+  </section>
+
+  <!-- Exploração -->
+  <section class="page" id="p-explore">
+    <div class="map" id="emap" style="height:300px"></div>
+    <div class="grid">
+      <div class="card"><div class="lbl">ESTRADAS NOVAS</div><div class="big" id="ekm">—</div></div>
+      <div class="card"><div class="lbl">CONCELHOS</div><div class="big" id="ecount">—</div><div class="bar"><div id="ebar" style="width:0"></div></div></div>
+    </div>
+    <div class="card"><div class="lbl">ÚLTIMO DESCOBERTO</div><div class="big" style="font-size:26px" id="elast">—</div></div>
+    <div class="card" id="elist"></div>
+  </section>
+</div>
+
+<nav class="tabs" id="tabs" style="display:none">
+  <button class="tab on" data-p="p-car"><span class="i">🚗</span>Carro</button>
+  <button class="tab" data-p="p-trips"><span class="i">🗺️</span>Viagens</button>
+  <button class="tab" data-p="p-explore"><span class="i">🧭</span>Exploração</button>
+</nav>
+
+<script>
+// Base de dados Firebase (a mesma que está no rádio)
+const DB = '';
+
+const PT = 'pt-PT';
+const $ = id => document.getElementById(id);
+let key = (location.hash.match(/k=([A-Za-z0-9_-]{24,})/) || [])[1];
+try { if (key) localStorage.setItem('golfKey', key); else key = localStorage.getItem('golfKey'); } catch (e) {}
+
+const TILES = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+const ATTR = '© OpenStreetMap · © CARTO';
+let data = null, maps = {}, carMarker = null, tripLayer = null, concLayer = null, concData = null, selTrip = null;
+
+function makeMap(id, center, zoom) {
+  const m = L.map(id, {zoomControl: false, attributionControl: true}).setView(center, zoom);
+  L.tileLayer(TILES, {attribution: ATTR, subdomains: 'abcd', maxZoom: 19}).addTo(m);
+  return m;
+}
+
+function ago(t) {
+  if (!t) return '—';
+  const s = (Date.now() - t) / 1000;
+  if (s < 60) return 'agora mesmo';
+  if (s < 3600) return 'há ' + Math.round(s / 60) + ' min';
+  if (s < 86400) return 'há ' + Math.round(s / 3600) + ' h';
+  const d = new Date(t);
+  return d.toLocaleDateString(PT, {weekday: 'short', day: 'numeric', month: 'short'}) + ' · ' +
+    d.toLocaleTimeString(PT, {hour: '2-digit', minute: '2-digit'});
+}
+function when(t) {
+  const d = new Date(t), now = new Date();
+  const hm = d.toLocaleTimeString(PT, {hour: '2-digit', minute: '2-digit'});
+  if (d.toDateString() === now.toDateString()) return 'Hoje, ' + hm;
+  const y = new Date(now); y.setDate(now.getDate() - 1);
+  if (d.toDateString() === y.toDateString()) return 'Ontem, ' + hm;
+  return d.toLocaleDateString(PT, {weekday: 'short', day: 'numeric', month: 'short'}).replace('.', '') + ' · ' + hm;
+}
+const km = v => v == null ? '—' : (v < 10 ? v.toLocaleString(PT, {maximumFractionDigits: 1}) : Math.round(v).toLocaleString(PT)) + ' km';
+const dur = ms => { const m = Math.round(ms / 60000); return m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0'); };
+const speedColor = k => k < 50 ? '#60A5FA' : k <= 90 ? '#4ADE80' : '#FB923C';
+
+async function load() {
+  try {
+    const r = await fetch(`${DB.replace(/\/+$/, '')}/cars/${key}.json`, {cache: 'no-store'});
+    data = await r.json() || {};
+    render();
+  } catch (e) {
+    $('updated').textContent = 'Sem ligação à internet';
+  }
+}
+
+function render() {
+  const s = data.status || {};
+  $('updated').textContent = 'Atualizado ' + ago(s.t);
+  const fresh = s.t && Date.now() - s.t < 3 * 60 * 1000;
+  let st = 'Sem dados', col = 'var(--muted)';
+  if (s.t) {
+    if (fresh && s.moving) { st = 'A andar · ' + s.spd + ' km/h'; col = 'var(--green)'; }
+    else if (fresh) { st = 'Ligado, parado'; col = 'var(--yellow)'; }
+    else { st = 'Estacionado'; col = 'var(--acc)'; }
+  }
+  $('stext').textContent = st; $('sdot').style.background = col;
+
+  // Mapa com o carro
+  if (s.lat != null) {
+    const p = [s.lat, s.lon];
+    if (!maps.car) maps.car = makeMap('map', p, 16);
+    if (!carMarker) carMarker = L.marker(p, {icon: L.divIcon({className: '', html: '<div class="car"></div>', iconSize: [22, 22]})}).addTo(maps.car);
+    carMarker.setLatLng(p); maps.car.setView(p, maps.car.getZoom());
+    $('apple').href = `https://maps.apple.com/?ll=${s.lat},${s.lon}&q=Golf`;
+    $('google').href = `https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lon}`;
+  } else if (!maps.car) {
+    maps.car = makeMap('map', [39.6, -8.2], 6);
+  }
+
+  // Motor
+  const e = s.engine || {};
+  const codes = e.codes || [];
+  let mil;
+  if (!e.checked) mil = '<div class="lbl">LUZ DO MOTOR</div><div class="muted">Ainda sem leitura do adaptador.</div>';
+  else if (!e.mil && !codes.length) mil = '<div class="lbl" style="color:var(--green)">LUZ DO MOTOR · APAGADA</div><div style="font-size:18px">✓ Sem erros no motor</div>';
+  else mil = '<div class="lbl" style="color:var(--red)">LUZ DO MOTOR · ACESA</div>' +
+    codes.map(c => `<div class="code"><b style="color:var(--yellow)">${c.c}</b><div>${c.d}</div></div>`).join('');
+  $('mil').innerHTML = mil + (e.checked ? `<div class="muted" style="font-size:14px;margin-top:6px">Verificado ${ago(e.checked)}</div>` : '');
+  $('cool').innerHTML = e.coolant != null ? Math.round(e.coolant) + '<span class="unit">°C</span>' : '—';
+  $('volt').innerHTML = e.volt != null ? e.volt.toLocaleString(PT, {minimumFractionDigits: 1}) + '<span class="unit">V</span>' : '—';
+
+  const t = s.trip;
+  if (t && fresh) {
+    $('tripNow').style.display = '';
+    $('tripNow').innerHTML = `<div class="lbl">VIAGEM ATUAL</div><div class="big">${km(t.km)}</div>
+      <div class="muted" style="font-size:17px;margin-top:4px">${dur(t.d)}${t.l != null ? ' · ' + t.l.toLocaleString(PT) + ' L/100' : ''}</div>`;
+  } else $('tripNow').style.display = 'none';
+
+  renderTrips();
+  renderExplore();
+}
+
+function renderTrips() {
+  const trips = data.trips || [];
+  const list = $('tripList');
+  if (!trips.length) { list.innerHTML = '<div class="empty">Ainda não há viagens guardadas.</div>'; return; }
+  list.innerHTML = trips.map((t, i) => `<div class="row" data-i="${i}"><div class="w">${when(t.s)}</div><div class="v">${km(t.km)}</div><div class="v">${dur(t.d)}</div><div class="v">${t.l != null ? t.l.toLocaleString(PT) + ' L' : '—'}</div></div>`).join('');
+  list.querySelectorAll('.row').forEach(r => r.onclick = () => showTrip(+r.dataset.i));
+  if (selTrip == null && document.querySelector('#p-trips.on')) showTrip(0);
+}
+
+function showTrip(i) {
+  const t = (data.trips || [])[i]; if (!t) return;
+  selTrip = i;
+  if (!maps.trip) maps.trip = makeMap('tmap', [39.6, -8.2], 7);
+  if (tripLayer) tripLayer.remove();
+  tripLayer = L.layerGroup().addTo(maps.trip);
+  const r = t.r || [], pts = [];
+  for (let k = 0; k + 2 < r.length; k += 3) pts.push([r[k] / 1e5, r[k + 1] / 1e5, r[k + 2]]);
+  for (let k = 1; k < pts.length; k++) {
+    const c = speedColor(pts[k][2]);
+    L.polyline([pts[k - 1], pts[k]], {color: c, weight: 12, opacity: .22, lineCap: 'round'}).addTo(tripLayer);
+    L.polyline([pts[k - 1], pts[k]], {color: c, weight: 4.5, opacity: 1, lineCap: 'round'}).addTo(tripLayer);
+  }
+  if (pts.length) {
+    L.circleMarker(pts[0], {radius: 7, color: '#F2F3F5', weight: 3, fill: false}).addTo(tripLayer);
+    L.circleMarker(pts[pts.length - 1], {radius: 7, color: '#fff', fillColor: '#fff', fillOpacity: 1}).addTo(tripLayer);
+    maps.trip.fitBounds(L.latLngBounds(pts.map(p => [p[0], p[1]])), {padding: [24, 24]});
+  }
+  const max = pts.reduce((m, p) => Math.max(m, p[2]), 0);
+  $('tripInfo').style.display = '';
+  $('tripInfo').innerHTML = `<div class="lbl">${when(t.s).toUpperCase()}</div>
+    <div style="display:flex;gap:18px;flex-wrap:wrap;font-size:18px">
+      <span><b class="big" style="font-size:28px">${km(t.km)}</b></span><span class="muted">${dur(t.d)}</span>
+      <span class="muted">máx ${max} km/h</span>${t.l != null ? `<span class="muted">${t.l.toLocaleString(PT)} L/100</span>` : ''}</div>`;
+  document.querySelectorAll('#tripList .row').forEach(r => r.style.background = +r.dataset.i === i ? 'rgba(94,234,212,.08)' : '');
+}
+
+async function renderExplore() {
+  const ex = data.explore || {};
+  const list = ex.list || [], total = ex.total || 278;
+  $('ekm').innerHTML = ex.km != null ? km(ex.km) : '—';
+  $('ecount').innerHTML = list.length + '<span class="unit">/ ' + total + '</span>';
+  $('ebar').style.width = Math.min(100, list.length * 100 / total) + '%';
+  $('elast').textContent = ex.last || '—';
+  const by = {};
+  list.forEach(k => { const [n, d] = k.split('|'); (by[d] = by[d] || []).push(n); });
+  const ds = Object.keys(by).sort((a, b) => a.localeCompare(b, PT));
+  $('elist').innerHTML = '<div class="lbl">CONCELHOS POR DISTRITO · ' + ds.length + ' DE 18</div>' + (ds.length ? ds.map(d =>
+    `<details><summary>${d} <span class="muted">· ${by[d].length}</span></summary><p>${by[d].sort((a, b) => a.localeCompare(b, PT)).join(', ')}</p></details>`).join('')
+    : '<div class="muted">Ainda nenhum.</div>');
+  if (!document.querySelector('#p-explore.on')) return;
+  if (!maps.ex) maps.ex = makeMap('emap', [39.6, -8.2], 6);
+  if (!concData) concData = await (await fetch('concelhos.json')).json();
+  const seen = new Set(list);
+  if (concLayer) concLayer.remove();
+  concLayer = L.layerGroup().addTo(maps.ex);
+  concData.forEach(([n, d, rings]) => {
+    const v = seen.has(n + '|' + d);
+    L.polygon(rings, {color: v ? '#5EEAD4' : '#ffffff', opacity: v ? .7 : .12, weight: 1,
+      fillColor: '#5EEAD4', fillOpacity: v ? .22 : 0}).bindTooltip(n + (v ? ' ✓' : ''), {sticky: true}).addTo(concLayer);
+  });
+}
+
+document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.id === b.dataset.p));
+  window.scrollTo(0, 0);
+  setTimeout(() => {
+    Object.values(maps).forEach(m => m.invalidateSize());
+    if (b.dataset.p === 'p-trips' && data) showTrip(selTrip == null ? 0 : selTrip);
+    if (b.dataset.p === 'p-explore' && data) renderExplore();
+  }, 50);
+});
+
+if (!key || !DB) {
+  $('setup').style.display = '';
+} else {
+  $('app').style.display = ''; $('tabs').style.display = 'flex';
+  load();
+  setInterval(() => { if (!document.hidden) load(); }, 30000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+}
+</script>
+</body>
+</html>

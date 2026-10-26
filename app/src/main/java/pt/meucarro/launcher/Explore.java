@@ -187,6 +187,7 @@ public final class Explore {
             int count = seen.size();
             AudioLog.add("Exploração: concelho novo " + k.name + " (" + count + "/" + Concelhos.TOTAL + ")");
             notifyNew(c, k, count);
+            CloudSync.explore(c);
             MAIN.post(() -> {
                 for (Listener l : new ArrayList<>(LISTENERS)) l.onNewConcelho(k.name, k.district, count);
             });

@@ -73,6 +73,7 @@ public final class Sheet {
     private Dialog dialog;
     private LinearLayout rows;
     private String inputInitial;
+    private View custom;
     private android.widget.EditText input;
 
     private Sheet(Activity activity, String title) {
@@ -100,6 +101,12 @@ public final class Sheet {
 
     public String inputValue() {
         return input == null ? "" : input.getText().toString().trim();
+    }
+
+    /** Uma vista própria por baixo da mensagem (ex.: um código QR). */
+    public Sheet view(View v) {
+        this.custom = v;
+        return this;
     }
 
     public Sheet width(int px) {
@@ -199,6 +206,7 @@ public final class Sheet {
             msg.setPadding(16, 0, 16, entries.isEmpty() ? 4 : 12);
             body.addView(msg);
         }
+        if (custom != null) body.addView(custom);
         if (inputInitial != null) {
             input = new android.widget.EditText(activity);
             input.setText(inputInitial);

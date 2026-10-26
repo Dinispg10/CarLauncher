@@ -167,11 +167,13 @@ public class TripService extends Service {
     /** Percurso da viagem atual: {lat×1e5, lon×1e5, km/h}. */
     private final List<int[]> route = new ArrayList<>();
     private Location lastRoutePoint;
+    private boolean wasMoving;
 
     private final Runnable heartbeat = new Runnable() {
         @Override
         public void run() {
             p.edit().putLong("heartbeat", System.currentTimeMillis()).apply();
+            CloudSync.status(TripService.this, lastPoint, false); // app Golf no iPhone
             main.postDelayed(this, HEARTBEAT_MS);
         }
     };
@@ -206,6 +208,8 @@ public class TripService extends Service {
         lastTime = p.getLong("trip_last_time", 0);
         if (start != 0) route.addAll(readRoute(currentRouteFile(this)));
         Explore.init(this);
+        CloudSync.trips(this);
+        CloudSync.explore(this);
         if (Build.VERSION.SDK_INT >= 26) {
             NotificationChannel channel = new NotificationChannel(CHANNEL, "Viagem", NotificationManager.IMPORTANCE_MIN);
             channel.setShowBadge(false);
@@ -286,6 +290,12 @@ public class TripService extends Service {
             Explore.addPoint(this, location.getLatitude(), location.getLongitude(), lastRoutePoint == null);
             lastRoutePoint = location;
         }
+        // Parou (ex.: estacionou): envia logo a posição para a app do iPhone
+        boolean movingNow = location.hasSpeed() && location.getSpeed() > 3f;
+        if (wasMoving && location.hasSpeed() && location.getSpeed() < 1f) CloudSync.status(this, location, true);
+        if (lastPoint == null) CloudSync.status(this, location, true);
+        if (movingNow) wasMoving = true;
+        else if (location.hasSpeed() && location.getSpeed() < 1f) wasMoving = false;
         lastPoint = location;
         lastTime = now;
         if (now - lastSave > SAVE_MS) save();
@@ -352,7 +362,8 @@ public class TripService extends Service {
                 .putFloat("prev_km", tripKm)
                 .putLong("prev_duration", duration)
                 .putString("trip_history", next.toString())
-                .apply();
+                .commit();
+        CloudSync.trips(c);
     }
 
     // ---------- Percursos ----------
@@ -437,6 +448,7 @@ public class TripService extends Service {
         }
         //noinspection ResultOfMethodCallIgnored
         new File(new File(c.getFilesDir(), "routes"), tripStart + ".txt").delete();
+        CloudSync.trips(c);
         notifyListeners();
     }
 
