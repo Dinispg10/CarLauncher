@@ -392,6 +392,10 @@ public class ObdService extends Service {
                 readRequested = false;
                 readMilAndCodes(false);
             }
+            if (clearRequested && Obd.simulating()) {
+                clearRequested = false;
+                Obd.stopSimulation(); // teste: não envia nada ao carro
+            }
             if (clearRequested) {
                 clearRequested = false;
                 String r = cmd("04", 5000);
@@ -511,6 +515,7 @@ public class ObdService extends Service {
     }
 
     private void readMilAndCodes(boolean force) throws IOException {
+        if (Obd.simulating()) return; // durante o teste simulado não mexe nos erros mostrados
         int[] b = pid(cmd("0101", 2000), "01");
         boolean mil = false;
         int count = 0;

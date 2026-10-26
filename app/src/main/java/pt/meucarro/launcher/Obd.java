@@ -148,10 +148,50 @@ public final class Obd {
 
     /** O utilizador viu os erros atuais: não volta a avisar por estes. */
     public static void acknowledge(Context c) {
+        if (simulating()) {
+            alertPending = false;
+            changed();
+            return;
+        }
         StringBuilder sb = new StringBuilder(mil ? "MIL" : "");
         for (String code : codes) sb.append(',').append(code);
         prefs(c).edit().putString("obd_ack", sb.toString()).apply();
         alertPending = false;
+        changed();
+    }
+
+    // ---------- Teste simulado (só no ecrã; não envia nada ao carro) ----------
+    public static volatile long simulateUntil;
+
+    public static boolean simulating() {
+        return System.currentTimeMillis() < simulateUntil;
+    }
+
+    /** Finge que a luz do motor acendeu com dois erros, durante 2 minutos. */
+    public static void startSimulation() {
+        simulateUntil = System.currentTimeMillis() + 120000;
+        mil = true;
+        dtcCount = 2;
+        java.util.List<String> fake = new java.util.ArrayList<>();
+        fake.add("P0401");
+        fake.add("P2463");
+        codes = fake;
+        pendingCodes = new java.util.ArrayList<>();
+        kmWithMil = 23;
+        codesReadAt = System.currentTimeMillis();
+        alertPending = true;
+        log("TESTE: luz do motor simulada (P0401, P2463) durante 2 min");
+        changed();
+    }
+
+    public static void stopSimulation() {
+        simulateUntil = 0;
+        mil = false;
+        dtcCount = 0;
+        codes = new java.util.ArrayList<>();
+        kmWithMil = Double.NaN;
+        alertPending = false;
+        log("TESTE: simulação terminada (erros \"apagados\")");
         changed();
     }
 

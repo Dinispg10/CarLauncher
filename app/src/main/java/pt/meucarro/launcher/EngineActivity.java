@@ -198,6 +198,16 @@ public class EngineActivity extends Activity implements Obd.Listener {
                 })
                 .item("Acertar o consumo", this::calibrate)
                 .item("Ler os erros outra vez", ObdService::readCodes)
+                .item("Testar o aviso da luz do motor (simulado)", () -> Sheet.confirm(this,
+                        "Testar o aviso?",
+                        "A app finge durante 2 minutos que a luz do motor acendeu (P0401 e P2463). "
+                                + "É só no ecrã: não envia nada ao carro. Vai para o ecrã inicial e aparece o aviso; "
+                                + "depois experimente \"Ver detalhes\" e \"Apagar erros\".", "Testar", () -> {
+                            Obd.startSimulation();
+                            startActivity(new android.content.Intent(this, MainActivity.class)
+                                    .addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+                                            | android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP));
+                        }))
                 .item("Trocar de adaptador", () -> Sheet.confirm(this, "Trocar de adaptador?",
                         "A app esquece este adaptador. Depois escolhe outro na lista.", "Trocar", () -> {
                             ObdService.stop(this);
@@ -287,7 +297,8 @@ public class EngineActivity extends Activity implements Obd.Listener {
         Sheet.confirm(this, "Apagar os erros do motor?",
                 "Faça isto só depois de o problema estar resolvido: se a avaria continuar, a luz volta a acender. "
                         + "Melhor com o carro parado.", "Apagar", () -> {
-                    ObdService.clearCodes();
+                    if (Obd.simulating()) Obd.stopSimulation(); // teste: não envia nada ao carro
+                    else ObdService.clearCodes();
                     Obd.log("Pedido: apagar erros");
                 });
     }
