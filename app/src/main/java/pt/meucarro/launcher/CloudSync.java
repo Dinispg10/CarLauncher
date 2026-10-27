@@ -83,10 +83,23 @@ public final class CloudSync {
         return b;
     }
 
+    private static final java.util.Map<String, String> PENDING = new java.util.HashMap<>();
+
     private static void put(Context c, String path, String json) {
         if (!configured()) return;
-        String url = BuildConfig.CLOUD_URL.replaceAll("/+$", "") + "/cars/" + key(c) + "/" + path + ".json";
+        String url = BuildConfig.CLOUD_URL.replaceAll("/+$", "") + "/cars/" + key(c) + "/" + path + ".json?print=silent";
+        // Se ainda há um envio deste tipo à espera (internet lenta), só se troca o conteúdo: não acumula
+        synchronized (PENDING) {
+            boolean queued = PENDING.containsKey(path);
+            PENDING.put(path, json);
+            if (queued) return;
+        }
         EXEC.execute(() -> {
+            String body;
+            synchronized (PENDING) {
+                body = PENDING.remove(path);
+            }
+            if (body == null) return;
             HttpURLConnection con = null;
             try {
                 con = (HttpURLConnection) new URL(url).openConnection();
@@ -96,12 +109,15 @@ public final class CloudSync {
                 con.setDoOutput(true);
                 con.setRequestProperty("Content-Type", "application/json");
                 try (OutputStream out = con.getOutputStream()) {
-                    out.write(json.getBytes(StandardCharsets.UTF_8));
+                    out.write(body.getBytes(StandardCharsets.UTF_8));
                 }
                 con.getResponseCode();
+                // Lê a resposta (vazia) até ao fim: a ligação fica aberta para o próximo envio (gasta menos dados)
+                try (java.io.InputStream in = con.getInputStream()) {
+                    while (in.read() != -1) ;
+                }
             } catch (Exception ignored) {
                 // sem internet: fica para a próxima
-            } finally {
                 if (con != null) con.disconnect();
             }
         });
@@ -112,7 +128,10 @@ public final class CloudSync {
     /** Onde está o carro, se está a andar, e o motor (de minuto a minuto e quando pára). */
     public static void status(Context c, Location loc, boolean force) {
         long now = System.currentTimeMillis();
-        if (!configured() || (!force && now - lastStatus < 55000)) return;
+        Location l = loc != null ? loc : lastLoc;
+        // A andar: de 4 em 4 s (o iPhone vê o carro a mexer-se); parado: de minuto a minuto
+        boolean moving = l != null && l.hasSpeed() && l.getSpeed() > 1.5f;
+        if (!configured() || (!force && now - lastStatus < (moving ? 4000 : 55000))) return;
         lastStatus = now;
         if (loc != null) lastLoc = loc;
         else loc = lastLoc;
@@ -125,6 +144,7 @@ public final class CloudSync {
                 float kmh = loc.hasSpeed() ? loc.getSpeed() * 3.6f : 0f;
                 s.put("spd", Math.round(kmh));
                 s.put("moving", kmh > 3);
+                if (loc.hasBearing()) s.put("hd", Math.round(loc.getBearing()));
             }
             JSONObject e = new JSONObject();
             e.put("state", Obd.state.name());
@@ -162,6 +182,30 @@ public final class CloudSync {
                 s.put("trip", tr);
             }
             put(c, "status", s.toString());
+        } catch (Exception ignored) {
+        }
+    }
+
+    private static long lastTrail;
+
+    /** Rasto da viagem atual (para o iPhone desenhar por onde o carro já passou), de 20 em 20 s. */
+    public static void trail(Context c, long tripStart, List<int[]> route) {
+        long now = System.currentTimeMillis();
+        if (!configured() || now - lastTrail < 20000 || route.isEmpty()) return;
+        lastTrail = now;
+        try {
+            JSONObject o = new JSONObject();
+            o.put("s", tripStart);
+            JSONArray pts = new JSONArray();
+            int step = Math.max(1, route.size() / 300);
+            for (int i = 0; i < route.size(); i += step) {
+                int[] p = route.get(i);
+                pts.put(p[0]).put(p[1]).put(p[2]);
+            }
+            int[] last = route.get(route.size() - 1);
+            pts.put(last[0]).put(last[1]).put(last[2]);
+            o.put("r", pts);
+            put(c, "trail", o.toString());
         } catch (Exception ignored) {
         }
     }

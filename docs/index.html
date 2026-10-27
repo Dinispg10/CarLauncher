@@ -52,7 +52,13 @@ h1{font-weight:700;font-size:34px;letter-spacing:.01em}
 .leaflet-container{background:#0e1013;font-family:R,sans-serif}
 .leaflet-control-attribution{background:rgba(11,13,16,.7)!important;color:#777!important;font-size:10px}
 .leaflet-control-attribution a{color:#999!important}
-.car{width:22px;height:22px;border-radius:50%;background:var(--acc);border:3px solid #0B0D10;box-shadow:0 0 0 6px rgba(94,234,212,.25),0 0 18px rgba(94,234,212,.7)}
+.car{position:relative;width:40px;height:40px}
+.car .dot{position:absolute;left:9px;top:9px;width:22px;height:22px;border-radius:50%;background:var(--acc);border:3px solid #0B0D10;box-sizing:border-box;box-shadow:0 0 0 6px rgba(94,234,212,.25),0 0 18px rgba(94,234,212,.7)}
+.car svg{position:absolute;inset:0;width:40px;height:40px;display:none;filter:drop-shadow(0 0 8px rgba(94,234,212,.8));transition:transform .8s linear}
+.car.mv .dot{display:none}.car.mv svg{display:block}
+.mapwrap{position:relative}
+.follow{position:absolute;right:10px;bottom:20px;z-index:500;display:none;padding:8px 13px;border-radius:16px;border:1px solid var(--line);background:rgba(11,13,16,.85);color:var(--acc);font:600 14px R,sans-serif}
+.live{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:6px;background:var(--green);color:#0B0D10;font-size:11px;font-weight:700;letter-spacing:.5px;vertical-align:2px}
 details summary{list-style:none;cursor:pointer;font-weight:600;font-size:17px;padding:10px 2px}
 details summary::-webkit-details-marker{display:none}
 details p{color:var(--soft);font-size:16px;padding:0 2px 10px;line-height:1.4}
@@ -76,7 +82,7 @@ details p{color:var(--soft);font-size:16px;padding:0 2px 10px;line-height:1.4}
 
   <!-- Carro -->
   <section class="page on" id="p-car">
-    <div class="map" id="map"></div>
+    <div class="mapwrap"><div class="map" id="map"></div><button class="follow" id="followBtn">◎ Seguir o carro</button></div>
     <div class="btns">
       <a class="btn acc" id="apple">Abrir no Mapas</a>
       <a class="btn" id="google">Google Maps</a>
@@ -134,6 +140,8 @@ if (key && !location.hash.includes('k=')) history.replaceState(null, '', '#k=' +
 const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/';
 const ATTR = 'Esri, HERE, Garmin, © OpenStreetMap';
 let data = null, maps = {}, carMarker = null, tripLayer = null, concLayer = null, concData = null, selTrip = null;
+// Tempo real: posição animada, seta na direção em que o carro vai, rasto da viagem atual
+let follow = true, anim = null, lastPosAt = 0, lastTarget = '', rot = null, trailLine = null, trailGlow = null, trailKey = null;
 
 function makeMap(id, center, zoom) {
   const m = L.map(id, {zoomControl: false, attributionControl: true}).setView(center, zoom);
@@ -174,8 +182,110 @@ async function load() {
   }
 }
 
+// Ligação em direto à base de dados: o rádio envia a posição de 4 em 4 s e chega aqui logo
+let streams = [];
+function setPath(obj, path, val, merge) {
+  const parts = path.split('/').filter(Boolean);
+  if (!parts.length) return merge && val ? Object.assign(obj || {}, val) : val;
+  obj = obj || {};
+  let o = obj;
+  for (let i = 0; i < parts.length - 1; i++) o = o[parts[i]] = o[parts[i]] || {};
+  const k = parts[parts.length - 1];
+  o[k] = merge && val ? Object.assign(o[k] || {}, val) : val;
+  return obj;
+}
+function openLive() {
+  closeLive();
+  if (!window.EventSource) return;
+  ['status', 'trail'].forEach(name => {
+    const es = new EventSource(`${DB.replace(/\/+$/, '')}/cars/${key}/${name}.json`);
+    const on = merge => ev => {
+      try {
+        const m = JSON.parse(ev.data);
+        if (!data) data = {};
+        data[name] = setPath(data[name], m.path, m.data, merge);
+        renderStatus(true);
+      } catch (e) {}
+    };
+    es.addEventListener('put', on(false));
+    es.addEventListener('patch', on(true));
+    streams.push(es);
+  });
+}
+function closeLive() { streams.forEach(es => es.close()); streams = []; }
+
+function moveCar(p, hd, moving) {
+  const el = carMarker.getElement && carMarker.getElement();
+  const box = el && el.querySelector('.car');
+  if (box) {
+    box.classList.toggle('mv', !!moving);
+    if (hd != null) {
+      // roda pelo caminho mais curto (de 350° para 10° são 20°, não 340°)
+      rot = rot == null ? hd : rot + ((((hd - rot) % 360) + 540) % 360 - 180);
+      box.querySelector('svg').style.transform = `rotate(${rot}deg)`;
+    }
+  }
+  const tk = p[0] + ',' + p[1];
+  if (tk === lastTarget) return; // a mesma posição (ex.: atualização de minuto a minuto)
+  lastTarget = tk;
+  const from = carMarker.getLatLng();
+  const far = maps.car.distance(from, p) > 2000;
+  const now = Date.now();
+  // Anda até ao ponto novo durante o tempo que costuma demorar o próximo (fica fluido em vez de aos saltos)
+  const ms = far || !lastPosAt ? 0 : Math.min(4500, Math.max(600, now - lastPosAt));
+  lastPosAt = now;
+  if (anim) cancelAnimationFrame(anim);
+  if (!ms) {
+    carMarker.setLatLng(p);
+    if (follow) maps.car.setView(p, maps.car.getZoom(), {animate: false});
+    return;
+  }
+  const t0 = performance.now();
+  const step = t => {
+    const k = Math.min(1, (t - t0) / ms);
+    const q = L.latLng(from.lat + (p[0] - from.lat) * k, from.lng + (p[1] - from.lng) * k);
+    carMarker.setLatLng(q);
+    if (trailLine && moving) { const ll = trailLine.getLatLngs(); if (ll.length) { ll[ll.length - 1] = q; trailLine.setLatLngs(ll); trailGlow.setLatLngs(ll); } }
+    if (follow) maps.car.setView(q, maps.car.getZoom(), {animate: false});
+    anim = k < 1 ? requestAnimationFrame(step) : null;
+  };
+  anim = requestAnimationFrame(step);
+}
+
+function drawTrail(s, fresh) {
+  const tr = data.trail, t = s.trip;
+  const show = fresh && t && tr && tr.s === t.s && tr.r;
+  if (!show) {
+    if (trailLine) { trailLine.remove(); trailGlow.remove(); trailLine = trailGlow = null; trailKey = null; }
+    return;
+  }
+  const k = tr.s + ':' + tr.r.length + ':' + tr.r[tr.r.length - 2];
+  if (!trailLine) {
+    trailGlow = L.polyline([], {color: '#5EEAD4', weight: 12, opacity: .2, lineCap: 'round', interactive: false}).addTo(maps.car);
+    trailLine = L.polyline([], {color: '#5EEAD4', weight: 4, opacity: .95, lineCap: 'round', lineJoin: 'round', interactive: false}).addTo(maps.car);
+    carMarker.setZIndexOffset(1000);
+  }
+  if (k !== trailKey) {
+    trailKey = k;
+    const pts = [];
+    for (let i = 0; i + 2 < tr.r.length; i += 3) pts.push([tr.r[i] / 1e5, tr.r[i + 1] / 1e5]);
+    pts.push(carMarker.getLatLng());
+    trailLine.setLatLngs(pts); trailGlow.setLatLngs(pts);
+  } else if (s.moving) {
+    // entre envios do rasto, vai acrescentando a posição atual
+    const ll = trailLine.getLatLngs(); ll.push(carMarker.getLatLng());
+    trailLine.setLatLngs(ll); trailGlow.setLatLngs(ll);
+  }
+}
+
 function render() {
-  const s = data.status || {};
+  renderStatus(false);
+  renderTrips();
+  renderExplore();
+}
+
+function renderStatus(live) {
+  const s = (data && data.status) || {};
   $('updated').textContent = 'Atualizado ' + ago(s.t);
   const fresh = s.t && Date.now() - s.t < 3 * 60 * 1000;
   let st = 'Sem dados', col = 'var(--muted)';
@@ -185,13 +295,20 @@ function render() {
     else { st = 'Estacionado'; col = 'var(--acc)'; }
   }
   $('stext').textContent = st; $('sdot').style.background = col;
+  if (fresh && s.moving && streams.length) $('updated').innerHTML = 'Em direto <span class="live">AO VIVO</span>';
 
   // Mapa com o carro
   if (s.lat != null) {
     const p = [s.lat, s.lon];
-    if (!maps.car) maps.car = makeMap('map', p, 16);
-    if (!carMarker) carMarker = L.marker(p, {icon: L.divIcon({className: '', html: '<div class="car"></div>', iconSize: [22, 22]})}).addTo(maps.car);
-    carMarker.setLatLng(p); maps.car.setView(p, maps.car.getZoom());
+    if (!maps.car) {
+      maps.car = makeMap('map', p, 16);
+      // Arrastar o mapa deixa de seguir o carro; o botão volta a seguir
+      maps.car.on('dragstart', () => { follow = false; $('followBtn').style.display = 'block'; });
+    }
+    if (!carMarker) carMarker = L.marker(p, {interactive: false, icon: L.divIcon({className: '', iconSize: [40, 40],
+      html: '<div class="car"><div class="dot"></div><svg viewBox="0 0 40 40"><path d="M20 4 L32 34 L20 27 L8 34 Z" fill="#5EEAD4" stroke="#0B0D10" stroke-width="2.5" stroke-linejoin="round"/></svg></div>'})}).addTo(maps.car);
+    moveCar(p, s.hd, fresh && s.moving);
+    drawTrail(s, fresh);
     $('apple').href = `https://maps.apple.com/?ll=${s.lat},${s.lon}&q=Golf`;
     $('google').href = `https://www.google.com/maps/search/?api=1&query=${s.lat},${s.lon}`;
   } else if (!maps.car) {
@@ -223,8 +340,6 @@ function render() {
       <div class="muted" style="font-size:17px;margin-top:4px">${dur(t.d)}${t.l != null ? ' · ' + t.l.toLocaleString(PT) + ' L/100' : ''}</div>`;
   } else $('tripNow').style.display = 'none';
 
-  renderTrips();
-  renderExplore();
 }
 
 function renderTrips() {
@@ -335,8 +450,18 @@ if (!key || !DB) {
 } else {
   $('app').style.display = ''; $('tabs').style.display = 'flex';
   load();
-  setInterval(() => { if (!document.hidden) load(); }, 30000);
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) load(); });
+  openLive();
+  // Viagens e exploração (e reserva, se o direto falhar): de minuto a minuto
+  setInterval(() => { if (!document.hidden) load(); }, 60000);
+  // O iPhone fecha a ligação em direto quando a app vai para trás; ao voltar, abre de novo
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) closeLive();
+    else { load(); openLive(); }
+  });
+  $('followBtn').onclick = () => {
+    follow = true; $('followBtn').style.display = 'none';
+    if (carMarker) maps.car.setView(carMarker.getLatLng(), Math.max(maps.car.getZoom(), 15));
+  };
 }
 </script>
 </body>

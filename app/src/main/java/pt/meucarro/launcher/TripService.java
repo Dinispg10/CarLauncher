@@ -295,6 +295,8 @@ public class TripService extends Service {
         boolean movingNow = location.hasSpeed() && location.getSpeed() > 3f;
         if (wasMoving && location.hasSpeed() && location.getSpeed() < 1f) CloudSync.status(this, location, true);
         if (lastPoint == null) CloudSync.status(this, location, true);
+        CloudSync.status(this, location, false); // a andar: de 4 em 4 s
+        if (movingNow) CloudSync.trail(this, start, new ArrayList<>(route));
         if (movingNow) wasMoving = true;
         else if (location.hasSpeed() && location.getSpeed() < 1f) wasMoving = false;
         lastPoint = location;
