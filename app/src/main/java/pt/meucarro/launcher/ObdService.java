@@ -132,6 +132,7 @@ public class ObdService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
+        Obd.migrateCalibration(this);
         if (worker == null || !worker.isAlive()) {
             stopped = false;
             worker = new Thread(this::loop, "OBD");
@@ -427,8 +428,9 @@ public class ObdService extends Service {
             if (!Double.isNaN(rate5e)) {
                 fuel = rate5e * factor;
             } else if (!Double.isNaN(Obd.rpm) && !Double.isNaN(Obd.load)) {
-                // Estimativa para o 2.0 TDI: gasóleo injetado ≈ carga × 45 mg por injeção, 4 cilindros
-                double gPerS = Obd.load / 100.0 * 0.045 * Obd.rpm / 30.0;
+                // Estimativa para o 2.0 TDI: gasóleo injetado ≈ carga × 37,5 mg por injeção, 4 cilindros
+                // (acertado com o computador de bordo: 92 km, app 7,2 vs carro 6,0 L/100)
+                double gPerS = Obd.load / 100.0 * 0.0375 * Obd.rpm / 30.0;
                 fuel = gPerS * 3600 / 832.0 * factor;
             } else {
                 fuel = Double.NaN;

@@ -122,6 +122,30 @@ public final class Obd {
         prefs(c).edit().remove("obd_mac").remove("obd_name").apply();
     }
 
+    /**
+     * Uma vez: a estimativa passou a gastar 6,0/7,2 do que gastava. Corrige também o que já foi contado
+     * (total, início da viagem atual e médias das viagens guardadas), para tudo bater certo.
+     */
+    static void migrateCalibration(Context c) {
+        SharedPreferences p = prefs(c);
+        if (p.getBoolean("fuel_cal_v2", false)) return;
+        double k = 6.0 / 7.2;
+        SharedPreferences.Editor e = p.edit();
+        e.putFloat("obd_fuel_l", (float) (p.getFloat("obd_fuel_l", 0f) * k));
+        if (p.contains("trip_fuel0")) e.putFloat("trip_fuel0", (float) (p.getFloat("trip_fuel0", 0f) * k));
+        try {
+            org.json.JSONArray arr = new org.json.JSONArray(p.getString("trip_history", "[]"));
+            for (int i = 0; i < arr.length(); i++) {
+                org.json.JSONObject o = arr.getJSONObject(i);
+                if (o.has("l")) o.put("l", Math.round(o.getDouble("l") * k * 10) / 10.0);
+            }
+            e.putString("trip_history", arr.toString());
+        } catch (Exception ignored) {
+        }
+        e.putBoolean("fuel_cal_v2", true).apply();
+        log("Consumo acertado com o computador de bordo (×" + String.format(Locale.ROOT, "%.3f", k) + ")");
+    }
+
     /** Fator de correção do consumo (acertado pelo utilizador com o computador de bordo). */
     public static double fuelFactor(Context c) {
         return prefs(c).getFloat("obd_fuel_factor", 1f);
