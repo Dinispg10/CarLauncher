@@ -139,6 +139,11 @@ public final class ApkShare {
                 text(out, 200, "text/plain; charset=utf-8", CanBox.dump());
             } else if (path.startsWith("/obd")) {
                 text(out, 200, "text/plain; charset=utf-8", Obd.infoText() + "\n" + Obd.logText());
+            } else if (path.startsWith("/musica")) {
+                StringBuilder m = new StringBuilder("== Sessões de música agora ==\n");
+                for (String l : MediaHub.get(app).describeSessions()) m.append(l).append('\n');
+                m.append("\n== Registo (mais recente primeiro) ==\n").append(AudioLog.dump());
+                text(out, 200, "text/plain; charset=utf-8", m.toString());
             } else if (path.startsWith("/info")) {
                 text(out, 200, "text/plain; charset=utf-8", info());
             } else {
@@ -260,6 +265,8 @@ public final class ApkShare {
                 .append(" (mensagens da caixa CAN: ").append(CanBox.total()).append(")</li>");
         sb.append("<li style='margin:10px 0'><a ").append(a).append(" href='/obd.txt' download>obd.txt</a>")
                 .append(" (registo do adaptador do motor)</li>");
+        sb.append("<li style='margin:10px 0'><a ").append(a).append(" href='/musica.txt' download>musica.txt</a>")
+                .append(" (o que o telemóvel envia: nomes das músicas)</li>");
         sb.append("<li style='margin:10px 0'><a ").append(a).append(" href='/info.txt' download>info.txt</a>")
                 .append(" (resumo das apps do carro)</li></ul></body>");
         return sb.toString();

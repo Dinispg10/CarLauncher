@@ -12,7 +12,7 @@ import java.util.Locale;
  */
 public final class AudioLog {
 
-    private static final int MAX = 60;
+    private static final int MAX = 200;
     private static final ArrayDeque<String> LINES = new ArrayDeque<>();
     private static final SimpleDateFormat TIME = new SimpleDateFormat("HH:mm:ss", Locale.ROOT);
 

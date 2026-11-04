@@ -68,8 +68,8 @@ public final class ArtFetcher {
             callback.onArt(key, null);
             return;
         }
-        final File dir = new File(context.getCacheDir(), "capas-v2");
-        final File oldDir = new File(context.getCacheDir(), "capas");
+        final File dir = new File(context.getCacheDir(), "capas-v3");
+        final File oldDir = new File(context.getCacheDir(), "capas-v2");
         EXECUTOR.execute(() -> {
             Bitmap bitmap = null;
             try {
@@ -142,17 +142,22 @@ public final class ArtFetcher {
         if (body == null) return null;
         JSONArray data = new JSONObject(new String(body, "UTF-8")).optJSONArray("data");
         if (data == null) return null;
+        // Prefere o nome EXATO da música: "Lua" não deve ficar com a capa de "Lua Cheia"
+        String best = null;
+        int bestScore = 0;
         for (int i = 0; i < data.length(); i++) {
             JSONObject track = data.getJSONObject(i);
             JSONObject art = track.optJSONObject("artist");
             JSONObject album = track.optJSONObject("album");
             if (art == null || album == null) continue;
-            if (matches(artist, title, art.optString("name"), track.optString("title"))) {
-                String cover = album.optString("cover_xl", album.optString("cover_big", ""));
-                if (!cover.isEmpty()) return cover;
+            int sc = score(artist, title, art.optString("name"), track.optString("title"));
+            String cover = album.optString("cover_xl", album.optString("cover_big", ""));
+            if (sc > bestScore && !cover.isEmpty()) {
+                bestScore = sc;
+                best = cover;
             }
         }
-        return null;
+        return best;
     }
 
     private static String itunes(String artist, String title, String country) {
@@ -163,16 +168,27 @@ public final class ArtFetcher {
             if (body == null) return null;
             JSONArray results = new JSONObject(new String(body, "UTF-8")).optJSONArray("results");
             if (results == null) return null;
+            String best = null;
+            int bestScore = 0;
             for (int i = 0; i < results.length(); i++) {
                 JSONObject r = results.getJSONObject(i);
-                if (matches(artist, title, r.optString("artistName"), r.optString("trackName"))) {
-                    String art = r.optString("artworkUrl100", "");
-                    if (!art.isEmpty()) return art.replace("100x100bb", "600x600bb");
+                int sc = score(artist, title, r.optString("artistName"), r.optString("trackName"));
+                String art = r.optString("artworkUrl100", "");
+                if (sc > bestScore && !art.isEmpty()) {
+                    bestScore = sc;
+                    best = art.replace("100x100bb", "600x600bb");
                 }
             }
+            return best;
         } catch (Exception ignored) {
         }
         return null;
+    }
+
+    /** 2 = nome exato, 1 = nome parecido (ex.: com "- Ao Vivo"), 0 = não é esta música. */
+    static int score(String wantedArtist, String wantedTitle, String foundArtist, String foundTitle) {
+        if (!matches(wantedArtist, wantedTitle, foundArtist, foundTitle)) return 0;
+        return normalize(cleanTitle(wantedTitle)).equals(normalize(cleanTitle(foundTitle))) ? 2 : 1;
     }
 
     /** O resultado é mesmo esta música deste artista? */

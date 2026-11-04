@@ -58,8 +58,12 @@ public final class MediaHub implements MediaSessionManager.OnActiveSessionsChang
             this.playing = st != null && st.getState() == PlaybackState.STATE_PLAYING;
         }
 
+        PlaybackState lastState;
+
         @Override
         public void onPlaybackStateChanged(PlaybackState state) {
+            checkTrackChange(this, state);
+            lastState = state;
             boolean now = state != null && state.getState() == PlaybackState.STATE_PLAYING;
             boolean started = now && !playing;
             if (now != playing) AudioLog.add(label(c) + ": " + (now ? "a tocar" : "em pausa"));
@@ -74,13 +78,83 @@ public final class MediaHub implements MediaSessionManager.OnActiveSessionsChang
 
         @Override
         public void onMetadataChanged(MediaMetadata metadata) {
-            if (c == controller) notifyListeners();
+            logMetadata(c, metadata);
+            if (c == controller) {
+                metaAt = SystemClock.elapsedRealtime();
+                if (stale && !String.valueOf(rawTitle()).equals(staleTitle)) {
+                    AudioLog.add("Nome da música chegou (com atraso)");
+                    stale = false;
+                }
+                notifyListeners();
+            }
         }
 
         @Override
         public void onSessionDestroyed() {
             refresh();
         }
+    }
+
+    // ---------- Nome da música desatualizado ----------
+    /*
+     * Alguns telemóveis (iPhone por Bluetooth) às vezes mudam de música sem enviar o nome da nova:
+     * o rádio continuava a mostrar a anterior (título, artista, álbum e capa errados).
+     * Se a música acabou (ou carregou-se em ⏭) e o nome não muda em 4 s, deixamos de mostrar
+     * o nome antigo — mais vale "Música do telemóvel" do que a música errada.
+     */
+    private boolean stale;
+    private long metaAt;
+    private long nextPressedAt;
+    private String lastLogged;
+    private String staleTitle;
+
+    private static long extrapolate(PlaybackState st) {
+        if (st == null || st.getPosition() < 0) return -1;
+        long pos = st.getPosition();
+        if (st.getState() == PlaybackState.STATE_PLAYING && st.getLastPositionUpdateTime() > 0) {
+            pos += (long) ((SystemClock.elapsedRealtime() - st.getLastPositionUpdateTime()) * st.getPlaybackSpeed());
+        }
+        return pos;
+    }
+
+    private void checkTrackChange(Watch w, PlaybackState state) {
+        if (w.c != controller || state == null) return;
+        long before = extrapolate(w.lastState);
+        long now = state.getPosition();
+        if (before < 0 || now < 0 || now > 6000 || before < now + 10000) return; // não voltou ao início
+        MediaMetadata m = w.c.getMetadata();
+        long dur = m == null ? 0 : m.getLong(MediaMetadata.METADATA_KEY_DURATION);
+        boolean ended = dur > 0 && before > dur - 20000;
+        boolean skipped = SystemClock.elapsedRealtime() - nextPressedAt < 6000;
+        if (!ended && !skipped) return; // ex.: ⏮ para recomeçar a mesma música
+        final long changedAt = SystemClock.elapsedRealtime();
+        AudioLog.add("Música mudou (" + (ended ? "acabou" : "⏭") + "), à espera do nome novo…");
+        main.postDelayed(() -> {
+            if (metaAt < changedAt - 1500 && w.c == controller) {
+                stale = true;
+                staleTitle = String.valueOf(rawTitle());
+                AudioLog.add("O telemóvel NÃO enviou o nome da música nova: a esconder o nome antigo");
+                notifyListeners();
+            }
+        }, 4000);
+    }
+
+    private void logMetadata(MediaController c, MediaMetadata m) {
+        if (m == null) return;
+        CharSequence t = m.getText(MediaMetadata.METADATA_KEY_TITLE);
+        CharSequence a = m.getText(MediaMetadata.METADATA_KEY_ARTIST);
+        CharSequence al = m.getText(MediaMetadata.METADATA_KEY_ALBUM);
+        long d = m.getLong(MediaMetadata.METADATA_KEY_DURATION);
+        String line = label(c) + " enviou: " + t + " — " + a + " · " + al
+                + (d > 0 ? String.format(java.util.Locale.ROOT, " (%d:%02d)", d / 60000, d / 1000 % 60) : "");
+        if (line.equals(lastLogged)) return;
+        lastLogged = line;
+        AudioLog.add(line);
+    }
+
+    /** O nome que o telemóvel enviou já não é o da música que está a tocar. */
+    public boolean isStale() {
+        return stale && hasMedia();
     }
 
     private final java.util.Map<android.media.session.MediaSession.Token, Watch> watches = new java.util.HashMap<>();
@@ -221,6 +295,8 @@ public final class MediaHub implements MediaSessionManager.OnActiveSessionsChang
             return;
         }
         controller = next;
+        stale = false;
+        metaAt = SystemClock.elapsedRealtime();
         notifyListeners();
     }
 
@@ -249,6 +325,12 @@ public final class MediaHub implements MediaSessionManager.OnActiveSessionsChang
     private void updateArt() {
         if (!hasMedia()) {
             artKey = null;
+            artBitmap = null;
+            artColor = null;
+            return;
+        }
+        if (stale) {
+            artKey = "stale";
             artBitmap = null;
             artColor = null;
             return;
@@ -298,7 +380,7 @@ public final class MediaHub implements MediaSessionManager.OnActiveSessionsChang
     // ---------- Informação ----------
 
     public boolean hasMedia() {
-        return controller != null && controller.getMetadata() != null && title() != null;
+        return controller != null && controller.getMetadata() != null && rawTitle() != null;
     }
 
     private String text(String key) {
@@ -312,22 +394,29 @@ public final class MediaHub implements MediaSessionManager.OnActiveSessionsChang
     }
 
     public String title() {
+        return stale ? "Música do telemóvel" : rawTitle();
+    }
+
+    private String rawTitle() {
         String t = text(MediaMetadata.METADATA_KEY_TITLE);
         return t != null ? t : text(MediaMetadata.METADATA_KEY_DISPLAY_TITLE);
     }
 
     public String artist() {
+        if (stale) return "O telemóvel não enviou o nome desta música";
         String a = text(MediaMetadata.METADATA_KEY_ARTIST);
         if (a == null) a = text(MediaMetadata.METADATA_KEY_ALBUM_ARTIST);
         return a != null ? a : text(MediaMetadata.METADATA_KEY_DISPLAY_SUBTITLE);
     }
 
     public String album() {
+        if (stale) return null;
         return text(MediaMetadata.METADATA_KEY_ALBUM);
     }
 
     /** Capa enviada pela própria sessão (no Bluetooth do seu rádio normalmente não vem). */
     public Bitmap art() {
+        if (stale) return null;
         if (controller == null || controller.getMetadata() == null) return null;
         MediaMetadata m = controller.getMetadata();
         Bitmap b = m.getBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART);
@@ -422,6 +511,7 @@ public final class MediaHub implements MediaSessionManager.OnActiveSessionsChang
     }
 
     public void next() {
+        nextPressedAt = SystemClock.elapsedRealtime();
         if (controller != null) controller.getTransportControls().skipToNext();
         else sendKey(KeyEvent.KEYCODE_MEDIA_NEXT);
     }
