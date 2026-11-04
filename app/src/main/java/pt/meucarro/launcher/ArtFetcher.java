@@ -228,7 +228,7 @@ public final class ArtFetcher {
     }
 
     /** Tira coisas como "(Remastered 2011)" ou "- Live" que atrapalham a pesquisa. */
-    private static String cleanTitle(String title) {
+    static String cleanTitle(String title) {
         String t = title.replaceAll("\\s*[(\\[].*?[)\\]]", "");
         int dash = t.indexOf(" - ");
         if (dash > 0) t = t.substring(0, dash);

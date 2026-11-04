@@ -25,10 +25,25 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
     private View progressRow, progressTrack, progressFill, progressThumb;
     private EqualizerView eq;
 
+    // Letra
+    private boolean lyricsOn;
+    private String lyricsKey;
+    private long lyricsRetryAt;
+    private TextView btnLyrics;
+    private View lyricsBox;
+    private LyricsView lyricsView;
+
     private final Runnable ticker = new Runnable() {
         @Override
         public void run() {
             updateProgress();
+            if (lyricsOn) {
+                if (hub.hasMedia()) lyricsView.setPosition(hub.positionMs(), hub.durationMs(), hub.isPlaying());
+                if (lyricsKey == null && lyricsRetryAt > 0 && android.os.SystemClock.uptimeMillis() > lyricsRetryAt) {
+                    lyricsRetryAt = 0;
+                    updateLyrics();
+                }
+            }
             if (++ticks % 120 == 0) Night.apply(NowPlayingActivity.this, Night.isNight(NowPlayingActivity.this));
             handler.postDelayed(this, 500);
         }
@@ -66,6 +81,20 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
         progressThumb = findViewById(R.id.progress_thumb);
 
         findViewById(R.id.art_box).setClipToOutline(true);
+
+        btnLyrics = findViewById(R.id.btn_lyrics);
+        lyricsBox = findViewById(R.id.lyrics_box);
+        lyricsView = findViewById(R.id.lyrics);
+        lyricsBox.setClipToOutline(true);
+        lyricsOn = getSharedPreferences("launcher", MODE_PRIVATE).getBoolean("lyrics_on", false);
+        applyLyricsMode();
+        btnLyrics.setOnClickListener(v -> {
+            lyricsOn = !lyricsOn;
+            getSharedPreferences("launcher", MODE_PRIVATE).edit().putBoolean("lyrics_on", lyricsOn).apply();
+            lyricsKey = null;
+            applyLyricsMode();
+            render();
+        });
 
         findViewById(R.id.btn_back).setOnClickListener(v -> finish());
         findViewById(R.id.np_prev).setOnClickListener(v -> hub.previous());
@@ -155,6 +184,7 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
             eq.setMode(EqualizerView.Mode.STOPPED);
             showArt(null);
             updateAccent();
+            updateLyrics();
             return;
         }
         access.setVisibility(View.GONE);
@@ -170,6 +200,7 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
             eq.setMode(EqualizerView.Mode.STOPPED);
             showArt(null);
             updateAccent();
+            updateLyrics();
             return;
         }
 
@@ -198,6 +229,106 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
         showArt(hub.currentArt());
         updateAccent();
         updateProgress();
+        updateLyrics();
+    }
+
+    // ---------- Letra ----------
+
+    private static void size(View v, int w, int h) {
+        ViewGroup.LayoutParams lp = v.getLayoutParams();
+        lp.width = w;
+        lp.height = h;
+        v.setLayoutParams(lp);
+    }
+
+    /** Liga/desliga a letra: com ela, a capa e os botões encolhem para a esquerda e a letra fica à direita. */
+    private void applyLyricsMode() {
+        boolean on = lyricsOn;
+        android.widget.LinearLayout left = findViewById(R.id.np_left);
+        View info = findViewById(R.id.np_info);
+        View artBox = findViewById(R.id.art_box);
+        View prev = findViewById(R.id.np_prev), next = findViewById(R.id.np_next);
+        View controls = (View) play.getParent();
+
+        left.setOrientation(on ? android.widget.LinearLayout.VERTICAL : android.widget.LinearLayout.HORIZONTAL);
+        android.widget.LinearLayout.LayoutParams lp = (android.widget.LinearLayout.LayoutParams) left.getLayoutParams();
+        lp.width = on ? 330 : 0;
+        lp.weight = on ? 0 : 1;
+        left.setLayoutParams(lp);
+
+        size(artBox, on ? 220 : 380, on ? 220 : 380);
+        android.widget.LinearLayout.LayoutParams ip = (android.widget.LinearLayout.LayoutParams) info.getLayoutParams();
+        ip.width = on ? ViewGroup.LayoutParams.MATCH_PARENT : 0;
+        ip.weight = on ? 0 : 1;
+        ip.setMarginStart(on ? 0 : 48);
+        ip.topMargin = on ? 20 : 0;
+        info.setLayoutParams(ip);
+
+        title.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, on ? 32 : 49);
+        subtitle.setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, on ? 19 : 24);
+        eq.setVisibility(on ? View.GONE : View.VISIBLE);
+        for (View b : new View[]{prev, next}) {
+            size(b, on ? 60 : 72, on ? 60 : 72);
+            b.setPadding(on ? 18 : 22, on ? 18 : 22, on ? 18 : 22, on ? 18 : 22);
+        }
+        size(play, on ? 76 : 96, on ? 76 : 96);
+        play.setPadding(on ? 24 : 30, on ? 24 : 30, on ? 24 : 30, on ? 24 : 30);
+        ((ViewGroup.MarginLayoutParams) progressRow.getLayoutParams()).topMargin = on ? 18 : 28;
+        ((ViewGroup.MarginLayoutParams) controls.getLayoutParams()).topMargin = on ? 14 : 28;
+        controls.requestLayout();
+
+        lyricsBox.setVisibility(on ? View.VISIBLE : View.GONE);
+        styleLyricsButton();
+    }
+
+    private void styleLyricsButton() {
+        if (lyricsOn) {
+            android.graphics.drawable.GradientDrawable d = new android.graphics.drawable.GradientDrawable();
+            d.setColor(currentAccent);
+            d.setCornerRadius(24);
+            btnLyrics.setBackground(d);
+            btnLyrics.setTextColor(0xFF0B0D10);
+        } else {
+            btnLyrics.setBackgroundResource(R.drawable.chip_bg);
+            btnLyrics.setTextColor(0xFFC9CDD3);
+        }
+    }
+
+    private void updateLyrics() {
+        if (!lyricsOn) return;
+        if (!hub.hasAccess() || !hub.hasMedia()) {
+            lyricsKey = "-";
+            lyricsView.setMessage("Nada a tocar", "Põe música no telemóvel e a letra aparece aqui.");
+            return;
+        }
+        if (hub.isStale()) {
+            lyricsKey = "stale";
+            lyricsView.setMessage("À espera do nome da música", "O telemóvel ainda não enviou o nome desta música.");
+            return;
+        }
+        String artist = hub.artist(), songTitle = hub.title();
+        long dur = hub.durationMs();
+        String key = Lyrics.key(artist, songTitle, dur);
+        if (key.equals(lyricsKey)) return;
+        lyricsKey = key;
+        lyricsView.setMessage("A procurar a letra…", null);
+        lyricsView.setPosition(hub.positionMs(), dur, hub.isPlaying());
+        Lyrics.fetch(this, artist, songTitle, hub.album(), dur, (k, r) -> {
+            if (!k.equals(lyricsKey)) return; // entretanto mudou de música
+            if (r.found()) {
+                lyricsView.setLyrics(r.lines, r.synced, r.source);
+                lyricsView.setPosition(hub.positionMs(), hub.durationMs(), hub.isPlaying());
+            } else if (r.instrumental) {
+                lyricsView.setMessage("Música instrumental", "Esta música não tem letra.");
+            } else if (r.offline) {
+                lyricsView.setMessage("Sem internet", "A letra aparece quando houver ligação.");
+                lyricsKey = null;
+                lyricsRetryAt = android.os.SystemClock.uptimeMillis() + 20000;
+            } else {
+                lyricsView.setMessage("Ainda não há letra para esta música",
+                        "Músicas acabadas de sair às vezes demoram uns dias a ter letra.");
+            }
+        });
     }
 
     /** A cor de destaque acompanha a capa (se essa opção estiver ligada). */
@@ -207,6 +338,7 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
             Ui.animateAccent(root, currentAccent, next);
             currentAccent = next;
             eq.setColor(next);
+            styleLyricsButton();
         }
     }
 

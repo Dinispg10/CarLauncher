@@ -52,6 +52,25 @@
             android:layout_height="1px"
             android:layout_weight="1" />
 
+        <!-- Letra da música (liga/desliga) -->
+        <TextView
+            android:id="@+id/btn_lyrics"
+            android:layout_width="wrap_content"
+            android:layout_height="48px"
+            android:layout_marginEnd="12px"
+            android:background="@drawable/chip_bg"
+            android:clickable="true"
+            android:contentDescription="Mostrar a letra da música"
+            android:focusable="true"
+            android:gravity="center"
+            android:maxLines="1"
+            android:paddingStart="18px"
+            android:paddingEnd="18px"
+            android:tag="w600"
+            android:text="♪  Letra"
+            android:textColor="#FFC9CDD3"
+            android:textSize="16px" />
+
         <TextView
             android:id="@+id/source_chip"
             android:layout_width="wrap_content"
@@ -68,11 +87,20 @@
             android:textSize="16px" />
     </LinearLayout>
 
-    <!-- Capa + informação -->
+    <!-- Capa + informação (+ letra, quando ligada) -->
     <LinearLayout
+        android:id="@+id/content_row"
         android:layout_width="match_parent"
         android:layout_height="0px"
         android:layout_marginTop="20px"
+        android:layout_weight="1"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+    <LinearLayout
+        android:id="@+id/np_left"
+        android:layout_width="0px"
+        android:layout_height="wrap_content"
         android:layout_weight="1"
         android:gravity="center_vertical"
         android:orientation="horizontal">
@@ -103,6 +131,7 @@
         </FrameLayout>
 
         <LinearLayout
+            android:id="@+id/np_info"
             android:layout_width="0px"
             android:layout_height="wrap_content"
             android:layout_marginStart="48px"
@@ -276,5 +305,21 @@
                     android:src="@drawable/ic_next" />
             </LinearLayout>
         </LinearLayout>
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/lyrics_box"
+        android:layout_width="0px"
+        android:layout_height="match_parent"
+        android:layout_marginStart="28px"
+        android:layout_weight="1"
+        android:background="@drawable/card_bg"
+        android:visibility="gone">
+
+        <pt.meucarro.launcher.LyricsView
+            android:id="@+id/lyrics"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </FrameLayout>
     </LinearLayout>
 </LinearLayout>
