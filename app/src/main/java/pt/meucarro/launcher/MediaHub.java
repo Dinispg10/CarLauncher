@@ -525,6 +525,72 @@ public final class MediaHub implements MediaSessionManager.OnActiveSessionsChang
         if (controller != null) controller.getTransportControls().seekTo(ms);
     }
 
+    public interface SeekResult {
+        /** null = correu bem; senão, a mensagem para o utilizador. "…" = a avançar/recuar (ainda não acabou). */
+        void onSeek(String message);
+    }
+
+    private int seekId;
+
+    /**
+     * Andar com a música para a frente/trás. Por Bluetooth (AVRCP) não existe "ir para o minuto X":
+     * 1) tenta o salto direto (algumas apps aceitam);
+     * 2) se não mexeu, faz avanço/recuo rápido (como manter carregado ⏩/⏪) até chegar lá e volta a tocar;
+     * 3) se nem isso mexer, avisa que o telemóvel não deixa.
+     */
+    public void seekSmart(long target, SeekResult cb) {
+        if (controller == null) return;
+        final MediaController c = controller;
+        final int id = ++seekId;
+        final long start = positionMs();
+        PlaybackState st = c.getPlaybackState();
+        long actions = st == null ? 0 : st.getActions();
+        AudioLog.add(String.format(java.util.Locale.ROOT, "Saltar %d:%02d → %d:%02d (ações da app: %s%s%s)",
+                start / 60000, start / 1000 % 60, target / 60000, target / 1000 % 60,
+                (actions & PlaybackState.ACTION_SEEK_TO) != 0 ? "saltar " : "",
+                (actions & PlaybackState.ACTION_FAST_FORWARD) != 0 ? "⏩ " : "",
+                (actions & PlaybackState.ACTION_REWIND) != 0 ? "⏪" : ""));
+        c.getTransportControls().seekTo(target);
+        main.postDelayed(() -> {
+            if (id != seekId || c != controller) return;
+            long pos = positionMs();
+            if (Math.abs(pos - target) < 4000) {
+                AudioLog.add("Salto direto funcionou");
+                cb.onSeek(null);
+                return;
+            }
+            final boolean forward = target > pos;
+            if (Math.abs(target - pos) < 3000) {
+                cb.onSeek(null);
+                return;
+            }
+            AudioLog.add("Salto direto não mexeu; a tentar " + (forward ? "avanço rápido ⏩" : "recuo rápido ⏪"));
+            if (forward) c.getTransportControls().fastForward();
+            else c.getTransportControls().rewind();
+            cb.onSeek("…");
+            final long ffStart = SystemClock.elapsedRealtime();
+            final long posStart = pos;
+            main.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    if (id != seekId || c != controller) return;
+                    long p = positionMs();
+                    long elapsed = SystemClock.elapsedRealtime() - ffStart;
+                    boolean reached = forward ? p >= target - 1500 : p <= target + 1500;
+                    // Passados 2,5 s tem de ter andado mais depressa do que o normal
+                    boolean stuck = elapsed > 2500 && (forward ? p - posStart < elapsed * 1.5 : p > posStart - 1000);
+                    if (reached || stuck || elapsed > 40000) {
+                        c.getTransportControls().play();
+                        AudioLog.add(reached ? "Chegou com avanço/recuo rápido" : "Avanço/recuo rápido não funcionou");
+                        cb.onSeek(reached ? null : "O telemóvel não deixa andar com a música pelo rádio");
+                        return;
+                    }
+                    main.postDelayed(this, 200);
+                }
+            }, 300);
+        }, 1500);
+    }
+
     private void sendKey(int keyCode) {
         AudioManager audio = (AudioManager) context.getSystemService(Context.AUDIO_SERVICE);
         long now = SystemClock.uptimeMillis();

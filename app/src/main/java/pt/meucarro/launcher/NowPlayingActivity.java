@@ -24,6 +24,9 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
     private ImageView art, artPlaceholder, play;
     private View progressRow, progressTrack, progressFill, progressThumb;
     private EqualizerView eq;
+    // Barra a ser arrastada (fração 0..1, ou -1) e salto em curso
+    private float dragFrac = -1;
+    private long seekingTo, seekShownUntil;
 
     // Letra
     private boolean lyricsOn;
@@ -105,15 +108,41 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
         // A etiqueta do canto abre a app que está a tocar (ex.: Bluetooth, para gerir os telemóveis)
         chip.setOnClickListener(v -> openSourceApp());
 
-        // Tocar na barra para saltar (nem todos os telemóveis aceitam isto por Bluetooth)
+        // Arrastar (ou tocar) a barra para andar com a música para a frente/trás
         progressTrack.setOnTouchListener((v, event) -> {
-            if (event.getAction() == MotionEvent.ACTION_UP && v.getWidth() > 0) {
-                long dur = hub.durationMs();
-                if (dur > 0) {
-                    float f = Math.max(0f, Math.min(1f, event.getX() / v.getWidth()));
-                    hub.seekTo((long) (f * dur));
-                }
-                v.performClick();
+            long dur = hub.durationMs();
+            if (dur <= 0 || v.getWidth() <= 0) return true;
+            float f = Math.max(0f, Math.min(1f, event.getX() / v.getWidth()));
+            switch (event.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    v.getParent().requestDisallowInterceptTouchEvent(true);
+                    // fall through
+                case MotionEvent.ACTION_MOVE:
+                    dragFrac = f;
+                    updateProgress();
+                    break;
+                case MotionEvent.ACTION_UP:
+                    long target = (long) (f * dur);
+                    dragFrac = -1;
+                    seekingTo = target;
+                    seekShownUntil = android.os.SystemClock.uptimeMillis() + 2500;
+                    updateProgress();
+                    hub.seekSmart(target, msg -> {
+                        if ("…".equals(msg)) {
+                            label.setText(target > hub.positionMs() ? "A AVANÇAR…" : "A RECUAR…");
+                            seekShownUntil = 0; // mostra a barra a andar de verdade
+                            return;
+                        }
+                        seekShownUntil = 0;
+                        render();
+                        if (msg != null) android.widget.Toast.makeText(this, msg, android.widget.Toast.LENGTH_LONG).show();
+                    });
+                    v.performClick();
+                    break;
+                case MotionEvent.ACTION_CANCEL:
+                    dragFrac = -1;
+                    updateProgress();
+                    break;
             }
             return true;
         });
@@ -363,6 +392,9 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
         }
         progressRow.setVisibility(View.VISIBLE);
         long pos = hub.positionMs();
+        // Enquanto se arrasta, ou logo depois de largar, a barra mostra onde se quer ir
+        if (dragFrac >= 0) pos = (long) (dragFrac * dur);
+        else if (android.os.SystemClock.uptimeMillis() < seekShownUntil) pos = seekingTo;
         int width = progressTrack.getWidth();
         if (width > 0) {
             float f = Math.max(0f, Math.min(1f, pos / (float) dur));
