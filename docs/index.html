@@ -32,6 +32,11 @@ h1{font-weight:700;font-size:34px;letter-spacing:.01em}
 .unit{font-weight:500;font-size:16px;color:var(--muted);margin-left:4px}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
 .grid .card{margin:0}
+.wrapc{border-radius:22px;padding:16px 18px;margin-bottom:12px;background:radial-gradient(circle at 90% 0,rgba(124,58,237,.55),transparent 55%),radial-gradient(circle at 0 100%,rgba(13,148,136,.5),transparent 60%),#13161B;border:1px solid var(--line)}
+.wrapc .g{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:10px}
+.wrapc .g div{background:rgba(0,0,0,.25);border-radius:14px;padding:9px 10px}
+.wrapc .g b{display:block;font-size:22px;font-weight:600}
+.wrapc .g span{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--soft)}
 .map{height:260px;border-radius:22px;overflow:hidden;border:1px solid var(--line);margin-bottom:10px;background:#0e1013}
 .btns{display:flex;gap:10px;margin-bottom:12px}
 .btn{flex:1;text-align:center;padding:12px;border-radius:16px;background:var(--card);border:1px solid var(--line);color:var(--text);font-weight:600;font-size:16px;text-decoration:none}
@@ -101,6 +106,7 @@ details p{color:var(--soft);font-size:16px;padding:0 2px 10px;line-height:1.4}
 
   <!-- Viagens -->
   <section class="page" id="p-trips">
+    <div id="wrap" style="display:none"></div>
     <div class="map" id="tmap"></div>
     <div class="legend"><span><i style="background:#60A5FA"></i>até 50</span><span><i style="background:#4ADE80"></i>50–90</span><span><i style="background:#FB923C"></i>mais de 90 km/h</span></div>
     <div class="card" id="tripInfo" style="display:none"></div>
@@ -342,7 +348,27 @@ function renderStatus(live) {
 
 }
 
+// Golf Wrapped: o último resumo visto no rádio
+function renderWrap() {
+  const k = data.wrappedLast, w = k && data.wrapped && data.wrapped[k];
+  const box = $('wrap');
+  if (!w) { box.style.display = 'none'; return; }
+  const n = v => Math.round(v).toLocaleString(PT);
+  const lo = w.longest ? (w.longest.to && w.longest.to !== w.longest.from ? w.longest.from + ' → ' + w.longest.to : w.longest.from || '—') : '—';
+  let top = null; if (w.h) { let m = -1; w.h.forEach((v, i) => { if (v > m) { m = v; top = i; } }); }
+  box.innerHTML = `<div class="wrapc"><div class="lbl" style="color:#5EEAD4">✨ GOLF WRAPPED · ${(w.isYear ? w.year : w.title + ' ' + w.year).toUpperCase()}</div>
+    <div class="big">${n(w.km)}<span class="unit">km</span></div>
+    <div class="g"><div><span>GASÓLEO</span><b>${w.litres ? n(w.litres) + ' L' : '—'}</b></div>
+    <div><span>MÉDIA</span><b>${w.avg ? w.avg.toLocaleString(PT) : '—'}</b></div>
+    <div><span>VIAGENS</span><b>${w.trips || 0}</b></div>
+    <div style="grid-column:span 2"><span>MAIS LONGA</span><b style="font-size:17px">${lo}</b></div>
+    <div><span>A TUA HORA</span><b>${top != null ? top + 'h' : '—'}</b></div></div>
+    ${w.conc && w.conc.length ? `<div class="sub" style="margin-top:10px">+${w.conc.length} concelho${w.conc.length > 1 ? 's novos' : ' novo'}: ${w.conc.join(', ')}</div>` : ''}</div>`;
+  box.style.display = '';
+}
+
 function renderTrips() {
+  renderWrap();
   const trips = data.trips || [];
   const list = $('tripList');
   if (!trips.length) { list.innerHTML = '<div class="empty">Ainda não há viagens guardadas.</div>'; return; }

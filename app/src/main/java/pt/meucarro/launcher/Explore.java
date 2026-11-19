@@ -185,6 +185,7 @@ public final class Explore {
         p.edit().putString("explore_conc", sb.toString()).putString("explore_last", k.name).apply();
         if (celebrate) {
             int count = seen.size();
+            Wrapped.newConcelho(c, k.name);
             AudioLog.add("Exploração: concelho novo " + k.name + " (" + count + "/" + Concelhos.TOTAL + ")");
             notifyNew(c, k, count);
             CloudSync.explore(c);

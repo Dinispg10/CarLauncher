@@ -237,6 +237,20 @@ public final class CloudSync {
     }
 
     /** Números da exploração e lista de concelhos visitados. */
+    /** Resumo do Golf Wrapped (para a app do iPhone), sem o mapa dos concelhos visitados. */
+    public static void wrapped(Context c, String key, JSONObject data) {
+        if (!configured()) return;
+        try {
+            JSONObject o = new JSONObject(data.toString());
+            o.remove("vis");
+            JSONObject l = o.optJSONObject("longest");
+            if (l != null) l.remove("r");
+            put(c, "wrapped/" + key, o.toString());
+            put(c, "wrappedLast", JSONObject.quote(key));
+        } catch (Exception ignored) {
+        }
+    }
+
     public static void explore(Context c) {
         if (!configured()) return;
         try {

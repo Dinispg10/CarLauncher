@@ -158,6 +158,7 @@ public final class CanBox {
             odometerKm = ((b[12] & 0xFF) << 16) | ((b[13] & 0xFF) << 8) | (b[14] & 0xFF);
             fuelL = b[15] & 0xFF;
             fuelSource = "2E41/02";
+            if (appCtx != null) Wrapped.odometer(appCtx, odometerKm);
             carDataAt = System.currentTimeMillis();
             if (appCtx != null) {
                 // Guarda o último valor (ex.: para a app do iPhone e para abrir já com números)

@@ -165,6 +165,7 @@ public final class Obd {
     }
 
     static void addTotals(Context c, double litres, double km) {
+        Wrapped.addFuel(c, litres, km);
         SharedPreferences p = prefs(c);
         p.edit().putFloat("obd_fuel_l", (float) (p.getFloat("obd_fuel_l", 0f) + litres))
                 .putFloat("obd_km", (float) (p.getFloat("obd_km", 0f) + km)).apply();

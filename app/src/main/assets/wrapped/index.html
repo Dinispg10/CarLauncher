@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt"><head><meta charset="utf-8">
+<meta name="viewport" content="width=1024,user-scalable=no">
+<style>
+@font-face{font-family:R;font-weight:300;src:url(../fonts/rajdhani-300.ttf)}
+@font-face{font-family:R;font-weight:500;src:url(../fonts/rajdhani-500.ttf)}
+@font-face{font-family:R;font-weight:600;src:url(../fonts/rajdhani-600.ttf)}
+@font-face{font-family:R;font-weight:700;src:url(../fonts/rajdhani-700.ttf)}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+html,body{width:1024px;height:600px;overflow:hidden;background:#0B0D10;color:#F2F3F5;font-family:R,sans-serif}
+#root{position:absolute;left:0;top:0;width:1024px;height:600px;transform-origin:0 0;overflow:hidden}
+.sl{position:absolute;left:0;top:0;width:1024px;height:600px;overflow:hidden;opacity:0;transition:opacity .45s;pointer-events:none}
+.sl.on{opacity:1}
+.in{position:absolute;left:70px;top:110px;transform:translateY(18px);opacity:0;transition:all .6s .15s}
+.sl.on .in{transform:none;opacity:1}
+.bars{position:absolute;top:18px;left:32px;right:96px;display:-webkit-flex;display:flex;z-index:5}
+.bars i{-webkit-flex:1;flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.22);margin-right:6px;overflow:hidden;position:relative}
+.bars i b{position:absolute;left:0;top:0;bottom:0;width:0;background:#fff}
+.x{position:absolute;top:22px;right:28px;z-index:6;width:52px;height:52px;border-radius:50%;background:rgba(0,0,0,.3);display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;font:600 24px R;color:#fff}
+.k{font:700 14px R;letter-spacing:.18em}
+.huge{font:700 150px/0.85 R;letter-spacing:-2px}
+.h2{font:600 34px R}
+.p{font:500 21px R;opacity:.85}
+.row{display:-webkit-flex;display:flex;-webkit-align-items:baseline;align-items:baseline}
+.chips{display:-webkit-flex;display:flex;margin-top:34px}
+.chip2{padding:12px 20px;border-radius:18px;background:rgba(0,0,0,.22);font:600 22px R;margin-right:14px}
+.tap{position:absolute;bottom:20px;left:0;right:0;text-align:center;font:600 15px R;opacity:.55;letter-spacing:.06em}
+.card{background:#13161B;border:1px solid #22262D;border-radius:24px;padding:20px 24px}
+.lbl{font:700 13px R;letter-spacing:.12em;color:#9AA0A6}
+.grid{display:-webkit-flex;display:flex;-webkit-flex-wrap:wrap;flex-wrap:wrap;margin-top:26px;margin-right:-14px}
+.grid .card{width:calc(33.33% - 14px);margin:0 14px 14px 0}
+canvas{position:absolute}
+.stat{margin-right:34px}.stat .v{font:700 44px R}.stat .u{font-size:22px;opacity:.7}.stat .n{font:500 17px R;opacity:.8}
+</style></head><body><div id="root"></div>
+<script>
+var D = window.GOLF_DATA || null;
+var root = document.getElementById('root');
+function fit(){var s=Math.min(window.innerWidth/1024,window.innerHeight/600);root.style.transform='scale('+s+')';}
+window.addEventListener('resize',fit);fit();
+function nf(v,d){return (d?v.toFixed(d):Math.round(v).toString()).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,' ');}
+function el(h){var t=document.createElement('div');t.innerHTML=h;return t.firstChild;}
+function dur(ms){var m=Math.round(ms/60000),h=Math.floor(m/60);return h?h+'h'+(m%60<10?'0':'')+(m%60):m+' min';}
+function day(t){var d=new Date(t);var dn=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];var mn=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];return dn[d.getDay()]+', '+d.getDate()+' '+mn[d.getMonth()];}
+function trip(t){if(!t.from)return 'Viagem';if(!t.to||t.to==t.from)return 'Volta por '+t.from;return t.from+' <span style="opacity:.6">→</span> '+t.to;}
+
+var slides=[];
+function add(html,bg,draw){slides.push({html:html,bg:bg,draw:draw});}
+
+function build(){
+  var P=D.isYear?'o teu ano':'o teu mês';
+  // 1 abertura
+  add('<div class="in" style="top:150px"><div class="k" style="color:#5EEAD4">GOLF WRAPPED</div>'+
+      '<div style="font:700 120px/0.9 R;margin-top:14px;letter-spacing:-1px">'+D.title+'</div>'+
+      '<div class="h2" style="margin-top:22px">'+(D.name?D.name+', ':'')+P+'<br>ao volante'+(D.partial?' (até agora).':' está pronto.')+'</div></div>'+
+      '<div style="position:absolute;right:90px;top:170px;width:250px;height:250px;border-radius:50%;border:2px solid rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center"><div style="width:180px;height:180px;border-radius:50%;border:2px solid rgba(94,234,212,.5);display:flex;align-items:center;justify-content:center;font:700 54px R;color:#5EEAD4">'+D.year+'</div></div>'+
+      '<div class="tap">TOCA PARA COMEÇAR</div>',
+      'radial-gradient(circle at 80% 20%,#7c3aed 0,transparent 45%),radial-gradient(circle at 15% 85%,#0d9488 0,transparent 50%),#0B0D10');
+  // 2 quilómetros
+  if(D.km>0){
+    var refs=[[28,'ir de Lisboa a Sintra'],[313,'ir de Lisboa ao Porto'],[625,'ir de Lisboa a Madrid'],[1250,'ir a Madrid e voltar'],[1740,'ir de Lisboa a Paris'],[3480,'ir a Paris e voltar'],[5800,'ir de Lisboa a Moscovo'],[12000,'ir a Moscovo e voltar'],[40075,'dar a volta à Terra']];
+    var fun='';for(var i=refs.length-1;i>=0;i--)if(D.km>=refs[i][0]){fun='Dava para '+refs[i][1]+'.';if(D.km>refs[i][0]*1.25)fun+=' E ainda sobrava.';break;}
+    var chips='';
+    if(D.litres>0)chips+='<div class="chip2"><b>'+nf(D.litres)+' L</b> de gasóleo</div>';
+    if(D.trips>0)chips+='<div class="chip2"><b>'+D.trips+'</b> viage'+(D.trips==1?'m':'ns')+'</div>';
+    if(D.hours>=1)chips+='<div class="chip2"><b>'+nf(D.hours)+' h</b> ao volante</div>';
+    var cmp='';if(D.prevKm){var pc=Math.round((D.km-D.prevKm)/D.prevKm*100);cmp=(pc>=0?'▲ ':'▼ ')+Math.abs(pc)+'% '+(pc>=0?'mais':'menos')+' do que em '+D.prevName;}
+    add('<div class="in"><div class="k">'+(D.isYear?'ESTE ANO FIZESTE':'ESTE MÊS FIZESTE')+'</div>'+
+        '<div class="row" style="margin-top:16px"><span class="huge" data-count="'+D.km+'">0</span><span style="font:700 54px R;margin-left:18px">km</span></div>'+
+        '<div class="p" style="margin-top:20px">'+fun+'</div><div class="chips">'+chips+'</div>'+
+        (cmp?'<div class="p" style="margin-top:22px;font-size:19px">'+cmp+'</div>':'')+'</div><div class="tap">TOCA PARA CONTINUAR</div>',
+        'linear-gradient(135deg,#f97316,#db2777)');
+  }
+  // 3 viagem mais longa
+  var L=D.longest;
+  if(L&&L.km>=1){
+    add('<canvas width="460" height="600" style="right:40px;top:0"></canvas><div class="in" style="top:130px;width:500px">'+
+        '<div class="k" style="color:#60A5FA">A VIAGEM MAIS LONGA</div>'+
+        '<div style="font:700 62px/1.05 R;margin-top:16px">'+trip(L)+'</div>'+
+        '<div class="p" style="margin-top:14px">'+day(L.s)+' · saíste às '+new Date(L.s).toTimeString().substr(0,5)+'</div>'+
+        '<div class="row" style="margin-top:34px">'+
+        '<div class="stat"><div class="v">'+nf(L.km)+'<span class="u"> km</span></div><div class="n">distância</div></div>'+
+        '<div class="stat"><div class="v">'+dur(L.d)+'</div><div class="n">ao volante</div></div>'+
+        (L.l100?'<div class="stat"><div class="v">'+nf(L.l100,1)+'<span class="u"> L/100</span></div><div class="n">consumo</div></div>':'')+
+        '</div></div><div class="tap">TOCA PARA CONTINUAR</div>',
+        'radial-gradient(circle at 75% 50%,#1e3a5f 0,transparent 60%),#0B0D10',
+        function(cv){drawRoute(cv,L.r||[]);});
+  }
+  // 4 melhor consumo
+  var B=D.best;
+  if(B){
+    add('<div class="in" style="top:120px"><div class="k">O TEU MELHOR CONSUMO</div>'+
+        '<div class="row" style="margin-top:16px"><span class="huge">'+nf(B.l100,1)+'</span><span style="font:700 48px R;margin-left:16px">L/100</span></div>'+
+        '<div class="h2" style="margin-top:24px">'+trip(B)+'</div>'+
+        '<div class="p" style="margin-top:8px">'+day(B.s)+' · '+nf(B.km)+' km de pé leve.'+(D.avg?' A média '+(D.isYear?'do ano':'do mês')+' foi '+nf(D.avg,1)+' L/100.':'')+'</div></div>'+
+        '<svg style="position:absolute;right:90px;top:150px" width="280" height="280" viewBox="0 0 280 280"><circle cx="140" cy="140" r="110" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="22" stroke-dasharray="518 691" transform="rotate(135 140 140)" stroke-linecap="round"/>'+
+        '<circle cx="140" cy="140" r="110" fill="none" stroke="#A7F3D0" stroke-width="22" stroke-dasharray="'+Math.round(518*Math.max(.08,Math.min(1,(9-B.l100)/6)))+' 691" transform="rotate(135 140 140)" stroke-linecap="round"/>'+
+        '<text x="140" y="150" text-anchor="middle" font-family="R" font-weight="700" font-size="40" fill="#fff">TOP 1</text>'+
+        '<text x="140" y="182" text-anchor="middle" font-family="R" font-weight="600" font-size="18" fill="rgba(255,255,255,.7)">'+(D.trips>1?'das '+D.trips+' viagens':'')+'</text></svg>'+
+        '<div class="tap">TOCA PARA CONTINUAR</div>',
+        'linear-gradient(160deg,#059669,#065f46 60%,#064e3b)');
+  }
+  // 5 concelhos
+  if(D.conc&&D.conc.length){
+    var names=D.conc.slice(0,9).join(' · ')+(D.conc.length>9?' e mais '+(D.conc.length-9):'');
+    add('<canvas width="420" height="600" style="right:60px;top:0"></canvas><div class="in" style="top:120px;width:500px">'+
+        '<div class="k" style="color:#F0ABFC">EXPLORAÇÃO</div>'+
+        '<div class="row" style="margin-top:14px"><span class="huge" style="color:#F0ABFC">+'+D.conc.length+'</span><span style="font:700 44px R;margin-left:14px">concelho'+(D.conc.length==1?' novo':'s novos')+'</span></div>'+
+        '<div class="p" style="margin-top:22px;line-height:1.5;font-size:20px">'+names+'</div>'+
+        '<div class="h2" style="margin-top:22px;font-size:28px">Já conheces <span style="color:#5EEAD4">'+D.visited+'</span> dos '+D.total+'.</div></div>'+
+        '<div class="tap">TOCA PARA CONTINUAR</div>',
+        'radial-gradient(circle at 72% 50%,#4c1d95 0,transparent 60%),#0B0D10',
+        function(cv){drawConc(cv);});
+  }
+  // 6 a tua hora
+  var tot=0,top=0;for(var i=0;i<24;i++){tot+=D.h[i];if(D.h[i]>D.h[top])top=i;}
+  if(tot>5){
+    var nick=top<5?'da madrugada 🌙':top<9?'madrugador 🌅':top<12?'da manhã ☀️':top<14?'da hora de almoço 🍽':top<17?'da tarde 🌤':top<20?'de fim de tarde 🌇':'noturno 🌃';
+    var w=D.h[(top+23)%24]+D.h[top]+D.h[(top+1)%24];
+    var a=(top+23)%24,b=(top+2)%24;
+    var hist='';var mx=D.h[top]||1;for(var i=0;i<24;i++)hist+='<div style="-webkit-flex:1;flex:1;margin-right:6px;border-radius:6px 6px 2px 2px;height:'+Math.max(3,D.h[i]/mx*100)+'%;background:'+(i==top?'#fff':'rgba(199,210,254,.35)')+'"></div>';
+    add('<div class="in"><div class="k" style="color:#C7D2FE">A TUA HORA</div>'+
+        '<div style="font:700 92px/1 R;margin-top:12px">Às '+top+'h.</div>'+
+        '<div class="h2" style="margin-top:12px;font-size:30px">Condutor '+nick+'</div>'+
+        '<div class="p" style="margin-top:8px">'+Math.round(w/tot*100)+'% dos teus km foram entre as '+a+'h e as '+b+'h.</div></div>'+
+        '<div style="position:absolute;left:70px;right:64px;bottom:70px;height:150px;display:-webkit-flex;display:flex;-webkit-align-items:flex-end;align-items:flex-end">'+hist+'</div>'+
+        '<div style="position:absolute;left:70px;right:70px;bottom:44px;display:flex;justify-content:space-between;font:600 14px R;opacity:.6"><span>0h</span><span>6h</span><span>12h</span><span>18h</span><span>23h</span></div>',
+        'linear-gradient(180deg,#1e1b4b,#312e81 70%,#4338ca)');
+    D._top=top;
+  }
+  // 7 resumo
+  var t='';
+  t+='<div class="card"><div class="lbl">DISTÂNCIA</div><div style="font:700 46px R">'+nf(D.km)+' km</div></div>';
+  t+='<div class="card"><div class="lbl">GASÓLEO</div><div style="font:700 46px R">'+(D.litres>0?nf(D.litres)+' L':'—')+'</div></div>';
+  t+='<div class="card"><div class="lbl">CONSUMO MÉDIO</div><div style="font:700 46px R">'+(D.avg?nf(D.avg,1)+' <span style="font-size:22px;color:#9AA0A6">L/100</span>':'—')+'</div></div>';
+  t+='<div class="card"><div class="lbl">MAIS LONGA</div><div style="font:700 '+(L&&trip(L).length>24?26:34)+'px R;line-height:1.35">'+(L?trip(L).replace(/<[^>]+>/g,''):'—')+'</div></div>';
+  t+='<div class="card"><div class="lbl">CONCELHOS NOVOS</div><div style="font:700 46px R;color:#F0ABFC">+'+(D.conc?D.conc.length:0)+'</div></div>';
+  t+='<div class="card"><div class="lbl">A TUA HORA</div><div style="font:700 46px R">'+(D._top!=null?D._top+'h':'—')+'</div></div>';
+  add('<div style="position:absolute;left:70px;right:70px;top:84px"><div class="k" style="color:#5EEAD4">GOLF WRAPPED · '+(D.isYear?D.year:D.title.toUpperCase()+' '+D.year)+'</div>'+
+      '<div style="font:700 50px R;margin-top:6px">'+(D.isYear?'O teu ano':'O teu mês')+', num ecrã</div><div class="grid">'+t+'</div>'+
+      (D.partial?'<div class="p" style="font-size:17px;opacity:.6">Ainda não acabou: os números vão continuar a mudar.</div>':'')+'</div>',
+      'radial-gradient(circle at 85% 10%,rgba(94,234,212,.25),transparent 40%),radial-gradient(circle at 10% 95%,rgba(219,39,119,.25),transparent 45%),#0B0D10');
+}
+
+// ---------- Mapas ----------
+var CONC=null;
+function conc(){if(CONC)return CONC;try{CONC=JSON.parse(window.Golf?Golf.concelhos():'[]');}catch(e){CONC=[];}return CONC;}
+function wx(lon){return (lon+180)/360*256;}
+function wy(lat){var r=lat*Math.PI/180;return (1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*256;}
+function view(cv,minLo,maxLo,minLa,maxLa,pad){var L=wx(minLo),R=wx(maxLo),T=wy(maxLa),B=wy(minLa);var s=Math.min((cv.width-pad*2)/(R-L),(cv.height-pad*2)/(B-T));var ox=(cv.width-(R-L)*s)/2,oy=(cv.height-(B-T)*s)/2;
+  return {X:function(lo){return ox+(wx(lo)-L)*s;},Y:function(la){return oy+(wy(la)-T)*s;}};}
+function shapes(c,v,fill){var cs=conc();for(var i=0;i<cs.length;i++){var k=cs[i];c.beginPath();for(var j=1;j<k.length;j++){var r=k[j];for(var q=0;q<r.length;q+=2){var x=v.X(r[q]/1e4),y=v.Y(r[q+1]/1e4);q?c.lineTo(x,y):c.moveTo(x,y);}c.closePath();}
+  var f=fill?fill(k[0]):null;if(f){c.fillStyle=f;c.fill();}c.lineWidth=.6;c.strokeStyle='rgba(255,255,255,.13)';c.stroke();}}
+function drawRoute(cv,r){var c=cv.getContext('2d');if(r.length<4){shapes(c,view(cv,-9.6,-6.1,36.9,42.2,10));return;}
+  var a=1e9,b=-1e9,d=1e9,e=-1e9;for(var i=0;i<r.length;i+=2){var la=r[i]/1e5,lo=r[i+1]/1e5;a=Math.min(a,lo);b=Math.max(b,lo);d=Math.min(d,la);e=Math.max(e,la);}
+  // pelo menos ~60 km de lado, para se ver onde fica
+  var cx=(a+b)/2,cy=(d+e)/2,hw=Math.max((b-a)/2,.35),hh=Math.max((e-d)/2,.3);
+  var v=view(cv,cx-hw,cx+hw,cy-hh,cy+hh,40);shapes(c,v);
+  for(var p=0;p<2;p++){c.beginPath();for(var i=0;i<r.length;i+=2){var x=v.X(r[i+1]/1e5),y=v.Y(r[i]/1e5);i?c.lineTo(x,y):c.moveTo(x,y);}
+    c.lineWidth=p?3.5:12;c.lineCap='round';c.lineJoin='round';c.strokeStyle=p?'#60A5FA':'rgba(96,165,250,.25)';c.stroke();}
+  var ends=[[r[0],r[1]],[r[r.length-2],r[r.length-1]]];for(var i=0;i<2;i++){c.beginPath();c.arc(v.X(ends[i][1]/1e5),v.Y(ends[i][0]/1e5),7,0,7);c.fillStyle='#fff';c.fill();}}
+function drawConc(cv){var c=cv.getContext('2d');var nw={},vs={};D.conc.forEach(function(n){nw[n]=1;});(D.vis||[]).forEach(function(n){vs[n]=1;});
+  shapes(c,view(cv,-9.6,-6.1,36.9,42.2,20),function(n){return nw[n]?'#E879F9':vs[n]?'rgba(94,234,212,.45)':null;});}
+
+// ---------- Navegação ----------
+var cur=-1,timer=null,STEP=9000,els=[],bars=[];
+function show(i){
+  if(i<0)i=0;if(i>=slides.length){close();return;}
+  if(cur>=0)els[cur].className='sl';
+  cur=i;var s=els[i];s.className='sl on';
+  if(!s._drawn&&slides[i].draw){var cv=s.querySelector('canvas');if(cv)try{slides[i].draw(cv);}catch(e){}s._drawn=1;}
+  var n=s.querySelector('[data-count]');if(n&&!n._done){n._done=1;var to=+n.getAttribute('data-count'),t0=Date.now();(function f(){var k=Math.min(1,(Date.now()-t0)/1400);k=1-Math.pow(1-k,3);n.textContent=nf(to*k);if(k<1)requestAnimationFrame(f);})();}
+  for(var j=0;j<bars.length;j++){var b=bars[j];b.style.transition='none';b.style.width=j<i?'100%':'0';}
+  if(i<slides.length-1){var bb=bars[i];setTimeout(function(){bb.style.transition='width '+STEP+'ms linear';bb.style.width='100%';},30);}else bars[i].style.width='100%';
+  clearTimeout(timer);if(i<slides.length-1)timer=setTimeout(function(){show(cur+1);},STEP);
+}
+function close(){if(window.Golf)Golf.close();}
+function start(){
+  if(!D){root.innerHTML='<div style="padding:200px;text-align:center;font:600 30px R">Ainda não há dados.</div>';return;}
+  build();
+  var bh='<div class="bars">';for(var i=0;i<slides.length;i++)bh+='<i><b></b></i>';bh+='</div>';
+  for(var i=0;i<slides.length;i++){var s=el('<div class="sl" style="background:'+slides[i].bg+'">'+slides[i].html+'</div>');root.appendChild(s);els.push(s);}
+  root.appendChild(el(bh));root.appendChild(el('<div class="x">✕</div>'));
+  bars=root.querySelectorAll('.bars b');
+  root.querySelector('.x').addEventListener('click',function(e){e.stopPropagation();close();});
+  root.addEventListener('click',function(e){var s=Math.min(window.innerWidth/1024,window.innerHeight/600);show(e.clientX/s<340?cur-1:cur+1);});
+  show(0);
+}
+start();
+</script></body></html>

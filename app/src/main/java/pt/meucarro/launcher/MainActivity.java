@@ -173,6 +173,10 @@ public class MainActivity extends Activity implements MediaHub.Listener, TripSer
         TripService.start(this);
         TripService.addListener(this);
         ObdService.start(this);
+        // Golf Wrapped: no início do mês, oferece o resumo do mês que acabou (depois da animação de arranque)
+        getWindow().getDecorView().postDelayed(() -> {
+            if (!isFinishing() && hasWindowFocus()) WrappedActivity.offerIfDue(this);
+        }, 9000);
         Obd.addListener(this);
         Explore.addListener(this);
         renderTrip();

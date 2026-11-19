@@ -97,6 +97,14 @@ public class TripService extends Service {
     }
 
     /** Viagem atual, ou null se ainda não há nenhuma (ou se já acabou). */
+    /** Velocidade atual em km/h (0 se não se sabe). */
+    public static float speedKmh() {
+        TripService t = running;
+        Location l = t == null ? null : t.lastPoint;
+        if (l == null || !l.hasSpeed() || System.currentTimeMillis() - l.getTime() > 20000) return 0;
+        return l.getSpeed() * 3.6f;
+    }
+
     public static Trip current(Context context) {
         SharedPreferences p = prefs(context);
         long start = p.getLong("trip_start", 0);
@@ -208,6 +216,7 @@ public class TripService extends Service {
         lastTime = p.getLong("trip_last_time", 0);
         if (start != 0) route.addAll(readRoute(currentRouteFile(this)));
         Explore.init(this);
+        Wrapped.backfill(this);
         CanBox.start(this); // escuta a caixa CAN (para os litros do depósito)
         CloudSync.trips(this);
         CloudSync.explore(this);
@@ -249,6 +258,7 @@ public class TripService extends Service {
         } catch (Exception ignored) {
         }
         save();
+        Wrapped.save(this);
         if (running == this) running = null;
         super.onDestroy();
     }
@@ -279,7 +289,10 @@ public class TripService extends Service {
             float meters = lastPoint.distanceTo(location);
             float speed = location.hasSpeed() ? location.getSpeed() : 0f;
             // Só conta movimento real: ignora o "tremer" do GPS com o carro parado
-            if (speed > 1.0f && meters < 500f) km += meters / 1000.0;
+            if (speed > 1.0f && meters < 500f) {
+                km += meters / 1000.0;
+                Wrapped.addKm(this, meters / 1000.0, Math.min(5000, now - lastTime)); // Golf Wrapped
+            }
         }
         // Percurso: um ponto a cada ~20 m (máximo 6000 pontos por viagem)
         float kmh = location.hasSpeed() ? location.getSpeed() * 3.6f : 0f;
@@ -322,6 +335,9 @@ public class TripService extends Service {
         long start = p.getLong("trip_start", 0);
         float tripKm = p.getFloat("trip_km", 0f);
         if (start == 0) return;
+        // Golf Wrapped: conta todas as viagens (também as curtas que não ficam na lista)
+        Wrapped.onTrip(c, start, tripKm, p.getLong("trip_last_time", start) - start, tripL100(c, p),
+                readRoute(currentRouteFile(c)));
         if (tripKm < Math.max(0.2f, minKm(c))) {
             // Viagem curta demais para guardar: deita fora o percurso
             //noinspection ResultOfMethodCallIgnored
