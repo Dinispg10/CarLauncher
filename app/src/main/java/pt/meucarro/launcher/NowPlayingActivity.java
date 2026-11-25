@@ -85,6 +85,8 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
 
         findViewById(R.id.art_box).setClipToOutline(true);
 
+        findViewById(R.id.btn_offline).setOnClickListener(v ->
+                startActivity(new android.content.Intent(this, OfflineActivity.class)));
         btnLyrics = findViewById(R.id.btn_lyrics);
         lyricsBox = findViewById(R.id.lyrics_box);
         lyricsView = findViewById(R.id.lyrics);
@@ -179,6 +181,10 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
     }
 
     private void openSourceApp() {
+        if (hub.isOffline()) {
+            startActivity(new android.content.Intent(this, OfflineActivity.class));
+            return;
+        }
         if (getPackageName().equals(hub.sourcePackage())) {
             startActivity(new android.content.Intent(this, RadioNowActivity.class));
             return;

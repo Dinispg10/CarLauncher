@@ -58,7 +58,7 @@ public final class ApkShare {
             t.start();
             Thread stop = new Thread(() -> {
                 try {
-                    Thread.sleep(15 * 60 * 1000L);
+                    Thread.sleep(30 * 60 * 1000L);
                 } catch (InterruptedException ignored) {
                 }
                 stop();
@@ -112,6 +112,20 @@ public final class ApkShare {
                 if (low.startsWith("content-type:")) type = l.substring(13).trim();
             }
             OutputStream out = sock.getOutputStream();
+            if (method.equals("POST") && path.startsWith("/music?")) {
+                text(out, 200, "text/plain; charset=utf-8", receiveMusic(in, length, param(path, "name")));
+                return;
+            }
+            if (method.equals("POST") && path.startsWith("/music-delete?")) {
+                int n = OfflineMusic.deleteAlbum(app, param(path, "key"));
+                notifyMusic();
+                text(out, 200, "text/plain; charset=utf-8", "✓ " + n + " músicas apagadas");
+                return;
+            }
+            if (path.startsWith("/music-list")) {
+                text(out, 200, "application/json; charset=utf-8", musicList());
+                return;
+            }
             if (method.equals("POST") && path.startsWith("/upload")) {
                 String what = path.contains("photo") ? "photo" : "sound";
                 String msg = receive(in, length, type, what);
@@ -204,6 +218,95 @@ public final class ApkShare {
         }
     }
 
+    // ---------- Músicas offline ----------
+
+    private static String param(String path, String name) {
+        int q = path.indexOf('?');
+        if (q < 0) return "";
+        for (String kv : path.substring(q + 1).split("&")) {
+            int eq = kv.indexOf('=');
+            if (eq > 0 && kv.substring(0, eq).equals(name)) {
+                try {
+                    return java.net.URLDecoder.decode(kv.substring(eq + 1), "UTF-8");
+                } catch (Exception e) {
+                    return "";
+                }
+            }
+        }
+        return "";
+    }
+
+    /** Recebe um ficheiro de música (o corpo do pedido é o próprio ficheiro) e guarda-o na pasta offline. */
+    private static String receiveMusic(InputStream in, long length, String name) {
+        try {
+            if (!OfflineMusic.isAudio(name)) return "✗ " + name + ": não é um ficheiro de música";
+            if (length <= 0 || length > 400L * 1024 * 1024) return "✗ " + name + ": tamanho inválido";
+            File dir = OfflineMusic.folder(app);
+            if (dir.getUsableSpace() < length + 200L * 1024 * 1024) return "✗ Sem espaço no rádio";
+            String clean = name.replaceAll("[\\/:*?\"<>|]", "_").trim();
+            if (clean.length() > 150) clean = clean.substring(clean.length() - 150);
+            File f = new File(dir, clean);
+            if (f.exists() && f.length() == length) {
+                drain(in, length);
+                return "✓ " + name + " (já estava no rádio)";
+            }
+            File tmp = new File(dir, "." + clean + ".part");
+            long got = 0;
+            try (java.io.FileOutputStream fo = new java.io.FileOutputStream(tmp)) {
+                byte[] buf = new byte[64 * 1024];
+                while (got < length) {
+                    int n = in.read(buf, 0, (int) Math.min(buf.length, length - got));
+                    if (n < 0) break;
+                    fo.write(buf, 0, n);
+                    got += n;
+                }
+            }
+            if (got < length) {
+                //noinspection ResultOfMethodCallIgnored
+                tmp.delete();
+                return "✗ " + name + ": a ligação caiu a meio";
+            }
+            //noinspection ResultOfMethodCallIgnored
+            tmp.renameTo(f);
+            notifyMusic();
+            return "✓ " + name;
+        } catch (Exception e) {
+            return "✗ " + name + ": " + e.getMessage();
+        }
+    }
+
+    private static void drain(InputStream in, long length) throws java.io.IOException {
+        byte[] buf = new byte[64 * 1024];
+        long got = 0;
+        while (got < length) {
+            int n = in.read(buf, 0, (int) Math.min(buf.length, length - got));
+            if (n < 0) break;
+            got += n;
+        }
+    }
+
+    private static void notifyMusic() {
+        OfflineMusic.invalidate();
+        java.util.function.Consumer<String> cb = onReceived;
+        if (cb != null) new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> cb.accept("music"));
+    }
+
+    private static String musicList() {
+        org.json.JSONObject o = new org.json.JSONObject();
+        try {
+            org.json.JSONArray arr = new org.json.JSONArray();
+            for (OfflineMusic.Album a : OfflineMusic.albums(app)) {
+                arr.put(new org.json.JSONObject().put("key", a.key).put("name", a.name)
+                        .put("artist", a.artist == null ? "" : a.artist).put("n", a.tracks.size()));
+            }
+            o.put("albums", arr);
+            o.put("used", OfflineMusic.usedBytes(app));
+            o.put("free", OfflineMusic.folder(app).getUsableSpace());
+        } catch (Exception ignored) {
+        }
+        return o.toString();
+    }
+
     private static int indexOf(byte[] data, byte[] pattern, int from) {
         outer:
         for (int i = from; i <= data.length - pattern.length; i++) {
@@ -235,6 +338,33 @@ public final class ApkShare {
         }
     }
 
+    /** Envio de várias músicas de uma vez, uma a uma, com o progresso de cada. */
+    private static final String MUSIC_SECTION =
+            "<h3 id=musica>Músicas offline</h3>"
+            + "<p style='color:#9aa0a6'>MP3 (ou M4A, FLAC…). Podes escolher várias de uma vez. "
+            + "Ficam guardadas no rádio para ouvir sem telemóvel; os álbuns e capas vêm dos próprios ficheiros.</p>"
+            + "<input type=file id=mf multiple accept='audio/*,.mp3,.m4a,.aac,.flac,.ogg,.opus,.wav' style='font-size:16px'> "
+            + "<button id=mb onclick='up()' style='font-size:16px;padding:8px 18px;border-radius:10px;border:0;background:#5eead4'>Enviar para o rádio</button>"
+            + "<div id=mp style='margin:12px 0;font-size:16px;line-height:1.6'></div>"
+            + "<div id=ml style='margin:6px 0 26px;font-size:16px'></div>"
+            + "<script>"
+            + "function list(){fetch('/music-list').then(r=>r.json()).then(d=>{var h='';"
+            + "(d.albums||[]).forEach(a=>{h+='<div style=\"display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #22262d\"><div style=\"flex:1\"><b>'+esc(a.name)+'</b><br><span style=\"color:#9aa0a6\">'+esc(a.artist)+' · '+a.n+' músicas</span></div>'"
+            + "+'<button data-k=\"'+encodeURIComponent(a.key)+'\" onclick=\"del(this.dataset.k)\" style=\"font-size:15px;padding:6px 12px;border-radius:8px;border:1px solid #444;background:none;color:#f87171\">Apagar</button></div>';});"
+            + "h+='<p style=\"color:#9aa0a6\">Ocupado: '+(d.used/1048576).toFixed(0)+' MB · livre no rádio: '+(d.free/1073741824).toFixed(1)+' GB</p>';"
+            + "document.getElementById('ml').innerHTML=h;});}"
+            + "function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}"
+            + "function del(k){if(confirm('Apagar este álbum do rádio?'))fetch('/music-delete?key='+k,{method:'POST'}).then(list);}"
+            + "function up(){var fs=[].slice.call(document.getElementById('mf').files);if(!fs.length)return;"
+            + "var box=document.getElementById('mp');box.innerHTML='';document.getElementById('mb').disabled=true;var i=0;"
+            + "(function next(){if(i>=fs.length){document.getElementById('mb').disabled=false;box.innerHTML+='<b>Pronto! Já estão no rádio.</b>';list();return;}"
+            + "var f=fs[i++],line=document.createElement('div');line.textContent=f.name+' …';box.appendChild(line);"
+            + "var x=new XMLHttpRequest();x.open('POST','/music?name='+encodeURIComponent(f.name));"
+            + "x.upload.onprogress=function(e){if(e.lengthComputable)line.textContent=f.name+' … '+Math.round(e.loaded/e.total*100)+'%';};"
+            + "x.onload=function(){line.textContent=x.responseText;next();};x.onerror=function(){line.textContent='✗ '+f.name+': a ligação falhou';next();};"
+            + "x.send(f);})();}"
+            + "list();</script>";
+
     private static String page(String message) {
         String a = "style='color:#5eead4'";
         StringBuilder sb = new StringBuilder();
@@ -249,6 +379,7 @@ public final class ApkShare {
                 + "<input type=file name=f accept='%s' style='font-size:16px'> "
                 + "<button style='font-size:16px;padding:8px 18px;border-radius:10px;border:0;background:#5eead4'>"
                 + "Enviar para o rádio</button></form>";
+        sb.append(MUSIC_SECTION);
         sb.append("<h3>Som de arranque</h3><p style='color:#9aa0a6'>MP3 ou outro áudio curto (toca no máximo 8 s).</p>")
                 .append(String.format(form, "sound", "audio/*"));
         sb.append("<h3>Foto do carro</h3><p style='color:#9aa0a6'>JPG ou PNG, de preferência deitada (horizontal).</p>")

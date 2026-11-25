@@ -213,8 +213,9 @@ public final class MediaHub implements MediaSessionManager.OnActiveSessionsChang
         java.util.Set<android.media.session.MediaSession.Token> alive = new java.util.HashSet<>();
         if (sessions != null) {
             for (MediaController c : sessions) {
-                // A rádio online tem o seu próprio ecrã; aqui só entra a música do telemóvel/outras apps
-                if (context.getPackageName().equals(c.getPackageName())) continue;
+                // A rádio online tem o seu próprio ecrã; aqui entra a música do telemóvel, outras apps
+                // e as nossas músicas offline
+                if (isRadio(c)) continue;
                 alive.add(c.getSessionToken());
                 if (!watches.containsKey(c.getSessionToken())) {
                     Watch w = new Watch(c);
@@ -256,7 +257,12 @@ public final class MediaHub implements MediaSessionManager.OnActiveSessionsChang
 
     /** Só pode tocar uma coisa de cada vez: rádio online OU música do telemóvel. */
     private void onStartedPlaying(MediaController started) {
-        if (!context.getPackageName().equals(started.getPackageName())) {
+        // Outra app (ex.: Bluetooth) começou: as músicas offline param
+        if (!isOffline(started) && OfflineService.isPlaying()) {
+            AudioLog.add(label(started) + " começou: pausa nas músicas offline");
+            OfflineService.pause();
+        }
+        if (!isRadio(started)) {
             if (RadioService.isOn()) AudioLog.add(label(started) + " começou: a parar a rádio");
             RadioService.State st = RadioService.state();
             if (st == RadioService.State.PLAYING || st == RadioService.State.LOADING) {
@@ -277,7 +283,7 @@ public final class MediaHub implements MediaSessionManager.OnActiveSessionsChang
             return;
         }
         for (MediaController c : sessions) {
-            if (context.getPackageName().equals(c.getPackageName())) continue;
+            if (isRadio(c)) continue;
             PlaybackState st = c.getPlaybackState();
             if (st != null && st.getState() == PlaybackState.STATE_PLAYING) {
                 AudioLog.add("Rádio começou: pausa em " + label(c));
@@ -451,6 +457,20 @@ public final class MediaHub implements MediaSessionManager.OnActiveSessionsChang
         return state != null && state.getState() == PlaybackState.STATE_PLAYING;
     }
 
+    /** A nossa rádio online (que tem o seu próprio ecrã e não entra aqui). */
+    private boolean isRadio(MediaController c) {
+        return context.getPackageName().equals(c.getPackageName()) && !OfflineService.isOurSession(c.getSessionToken());
+    }
+
+    private boolean isOffline(MediaController c) {
+        return c != null && context.getPackageName().equals(c.getPackageName()) && OfflineService.isOurSession(c.getSessionToken());
+    }
+
+    /** O que está a tocar são as músicas guardadas no rádio. */
+    public boolean isOffline() {
+        return isOffline(controller);
+    }
+
     /** Pacote da app que está a tocar, ou null. */
     public String sourcePackage() {
         return controller != null ? controller.getPackageName() : null;
@@ -459,6 +479,7 @@ public final class MediaHub implements MediaSessionManager.OnActiveSessionsChang
     /** Nome da app que está a tocar (ex.: "Bluetooth"). */
     public String sourceLabel() {
         if (controller == null) return null;
+        if (isOffline(controller)) return "Músicas offline";
         if (context.getPackageName().equals(controller.getPackageName())) return "Rádio online";
         try {
             PackageManager pm = context.getPackageManager();

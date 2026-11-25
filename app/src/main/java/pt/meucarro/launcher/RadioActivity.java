@@ -49,6 +49,8 @@ public class RadioActivity extends Activity implements RadioService.Listener {
         playButton = findViewById(R.id.radio_play);
 
         findViewById(R.id.btn_back).setOnClickListener(v -> finish());
+        findViewById(R.id.btn_offline).setOnClickListener(v ->
+                startActivity(new android.content.Intent(this, OfflineActivity.class)));
         findViewById(R.id.radio_play).setOnClickListener(v ->
                 RadioService.send(this, RadioService.ACTION_TOGGLE, -1));
         findViewById(R.id.radio_next).setOnClickListener(v ->

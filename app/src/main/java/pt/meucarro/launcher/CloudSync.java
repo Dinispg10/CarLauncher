@@ -66,7 +66,12 @@ public final class CloudSync {
 
     /** Código QR do link, para apontar a câmara do iPhone. */
     public static Bitmap qr(Context c, int scale) {
-        QrCode q = QrCode.encodeText(link(c), QrCode.Ecc.MEDIUM);
+        return qrFor(link(c), scale);
+    }
+
+    /** Código QR de um texto qualquer (ex.: o endereço da página do rádio). */
+    public static Bitmap qrFor(String text, int scale) {
+        QrCode q = QrCode.encodeText(text, QrCode.Ecc.MEDIUM);
         int border = 3, size = (q.size + border * 2) * scale;
         Bitmap b = Bitmap.createBitmap(size, size, Bitmap.Config.RGB_565);
         b.eraseColor(0xFFFFFFFF);

@@ -4,6 +4,8 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Ler músicas de uma pen USB / cartão SD (músicas offline) -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <!-- Atualizações pela internet (GitHub) -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
@@ -105,6 +107,17 @@
             android:name=".RadioService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
+
+        <!-- Toca as músicas guardadas no rádio -->
+        <service
+            android:name=".OfflineService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback" />
+
+        <activity
+            android:name=".OfflineActivity"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode"
+            android:exported="false" />
 
         <!-- Liga-se ao adaptador OBD2 e lê os dados do motor -->
         <service
