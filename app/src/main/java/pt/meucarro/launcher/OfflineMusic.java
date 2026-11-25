@@ -260,12 +260,14 @@ public final class OfflineMusic {
 
     /** Capa do ficheiro (guardada em cache), ou null se não tiver. Pode ser lento: não chamar no fio principal. */
     public static Bitmap art(Context c, String path, int size) {
-        String key = path + "@" + size;
+        // A chave inclui o tamanho e a data do ficheiro: se a capa for trocada (ficheiro reenviado), lê a nova
+        File src = new File(path);
+        String key = path + "@" + size + "@" + src.length() + "@" + src.lastModified();
         synchronized (ART) {
             if (ART.containsKey(key)) return ART.get(key);
         }
         Bitmap b = null;
-        File cache = new File(c.getCacheDir(), "offline_art/" + Integer.toHexString(path.hashCode()) + "_" + size + ".jpg");
+        File cache = new File(c.getCacheDir(), "offline_art/" + Integer.toHexString(key.hashCode()) + ".jpg");
         if (cache.exists()) {
             b = BitmapFactory.decodeFile(cache.getAbsolutePath());
         } else {
