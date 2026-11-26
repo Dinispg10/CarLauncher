@@ -257,10 +257,10 @@ public final class MediaHub implements MediaSessionManager.OnActiveSessionsChang
 
     /** Só pode tocar uma coisa de cada vez: rádio online OU música do telemóvel. */
     private void onStartedPlaying(MediaController started) {
-        // Outra app (ex.: Bluetooth) começou: as músicas offline param
-        if (!isOffline(started) && OfflineService.isPlaying()) {
-            AudioLog.add(label(started) + " começou: pausa nas músicas offline");
-            OfflineService.pause();
+        // Outra app (ex.: Bluetooth) começou: as músicas offline desligam-se (largam o som para o telemóvel)
+        if (!isOffline(started) && OfflineService.isRunning()) {
+            AudioLog.add(label(started) + " começou: a desligar as músicas offline");
+            OfflineService.stop(context);
         }
         if (!isRadio(started)) {
             if (RadioService.isOn()) AudioLog.add(label(started) + " começou: a parar a rádio");
@@ -520,6 +520,40 @@ public final class MediaHub implements MediaSessionManager.OnActiveSessionsChang
     private String label(MediaController c) {
         String pkg = c.getPackageName();
         return pkg.contains("bluetooth") ? "Bluetooth" : pkg;
+    }
+
+    /**
+     * Passa para a música do telemóvel (Bluetooth): desliga as músicas offline e a rádio
+     * e dá "play" na sessão do telemóvel. Devolve false se o telemóvel não estiver ligado.
+     */
+    public boolean switchToPhone() {
+        OfflineService.stop(context);
+        RadioService.State st = RadioService.state();
+        if (st == RadioService.State.PLAYING || st == RadioService.State.LOADING) {
+            RadioService.send(context, RadioService.ACTION_STOP, -1);
+        }
+        List<MediaController> sessions;
+        try {
+            sessions = sessionManager.getActiveSessions(listenerComponent);
+        } catch (Exception e) {
+            return false;
+        }
+        MediaController phone = null;
+        for (MediaController c : sessions) {
+            if (context.getPackageName().equals(c.getPackageName())) continue;
+            if (phone == null || c.getPackageName().contains("bluetooth")) phone = c;
+        }
+        if (phone == null) return false;
+        AudioLog.add("Fonte: telemóvel (" + label(phone) + ")");
+        final MediaController p = phone;
+        // Um bocadinho depois, para o som das offline já ter sido largado
+        main.postDelayed(() -> {
+            try {
+                p.getTransportControls().play();
+            } catch (Exception ignored) {
+            }
+        }, 400);
+        return true;
     }
 
     public void playPause() {

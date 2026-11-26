@@ -75,6 +75,19 @@ public class OfflineService extends Service implements AudioManager.OnAudioFocus
         if (s != null && s.playing) s.pausePlayback();
     }
 
+    public static boolean isRunning() {
+        return running != null;
+    }
+
+    /** Desliga de vez (larga o som para o telemóvel). O "Continuar" continua a lembrar-se do sítio. */
+    public static void stop(Context c) {
+        OfflineService s = running;
+        if (s == null) return;
+        s.pausePlayback();
+        s.stopForeground(true);
+        s.stopSelf();
+    }
+
     public static boolean isPlaying() {
         OfflineService s = running;
         return s != null && s.playing;

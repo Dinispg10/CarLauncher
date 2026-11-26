@@ -108,7 +108,7 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
         access.setOnClickListener(v -> MediaHub.openAccessSettings(this));
 
         // A etiqueta do canto abre a app que está a tocar (ex.: Bluetooth, para gerir os telemóveis)
-        chip.setOnClickListener(v -> openSourceApp());
+        chip.setOnClickListener(v -> chooseSource());
 
         // Arrastar (ou tocar) a barra para andar com a música para a frente/trás
         progressTrack.setOnTouchListener((v, event) -> {
@@ -178,6 +178,30 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
     @Override
     public void onMediaChanged() {
         render();
+    }
+
+    /** Escolher de onde vem a música: telemóvel, músicas offline ou rádio online. */
+    private void chooseSource() {
+        Sheet.create(this, "De onde vem a música?")
+                .item("📱  Telemóvel (Bluetooth)", () -> {
+                    if (!hub.switchToPhone()) {
+                        android.widget.Toast.makeText(this, "O telemóvel não está ligado ao rádio", android.widget.Toast.LENGTH_LONG).show();
+                        openPhoneApp();
+                    }
+                })
+                .item("💾  Músicas offline", () -> startActivity(new android.content.Intent(this, OfflineActivity.class)))
+                .item("📻  Rádio online", () -> startActivity(new android.content.Intent(this, RadioActivity.class)))
+                .button("Fechar", false, null)
+                .show();
+    }
+
+    private void openPhoneApp() {
+        android.content.SharedPreferences prefs = getSharedPreferences("launcher", MODE_PRIVATE);
+        if (!AppUtils.launch(this, prefs.getString("slot_phone_pkg", null), prefs.getString("slot_phone_cls", null))) {
+            android.widget.Toast.makeText(this,
+                    "Escolha a app de Bluetooth com um toque longo no botão Telefone do ecrã inicial",
+                    android.widget.Toast.LENGTH_LONG).show();
+        }
     }
 
     private void openSourceApp() {
