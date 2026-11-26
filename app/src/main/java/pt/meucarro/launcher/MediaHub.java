@@ -283,10 +283,12 @@ public final class MediaHub implements MediaSessionManager.OnActiveSessionsChang
             return;
         }
         for (MediaController c : sessions) {
-            if (isRadio(c)) continue;
+            // As nossas sessões (rádio e músicas offline) não: senão as offline pausavam-se a si próprias
+            // ao passar de música. A rádio pára as offline diretamente.
+            if (context.getPackageName().equals(c.getPackageName())) continue;
             PlaybackState st = c.getPlaybackState();
             if (st != null && st.getState() == PlaybackState.STATE_PLAYING) {
-                AudioLog.add("Rádio começou: pausa em " + label(c));
+                AudioLog.add("A nossa música começou: pausa em " + label(c));
                 try {
                     c.getTransportControls().pause();
                 } catch (Exception ignored) {

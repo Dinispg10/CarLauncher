@@ -209,6 +209,7 @@ public class RadioService extends Service implements AudioManager.OnAudioFocusCh
         session.setActive(true);
         updateSession();
         MediaHub.get(this).pauseOthers(); // pára o Bluetooth/Spotify enquanto a rádio toca
+        OfflineService.pause();           // e as músicas offline
         tryCurrentUrl();
     }
 
