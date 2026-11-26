@@ -97,6 +97,7 @@ public class OfflineActivity extends Activity {
         body.addView(wait, new FrameLayout.LayoutParams(-1, -1));
         new Thread(() -> {
             List<OfflineMusic.Album> albums = OfflineMusic.albums(this);
+            OfflineMusic.prefetchLyrics(this); // guarda as letras enquanto há internet
             main.post(() -> {
                 if (isFinishing()) return;
                 if (openAlbum != null) {

@@ -325,6 +325,48 @@ public final class OfflineMusic {
         return null;
     }
 
+    // ---------- Letras ----------
+
+    private static boolean prefetching;
+
+    /**
+     * Vai buscar (com internet) as letras de todas as músicas offline e guarda-as no rádio,
+     * para a ♪ Letra funcionar depois sem internet. As que já estão guardadas não voltam a ser pedidas.
+     */
+    public static void prefetchLyrics(Context c) {
+        final Context app = c.getApplicationContext();
+        synchronized (OfflineMusic.class) {
+            if (prefetching) return;
+            prefetching = true;
+        }
+        new Thread(() -> {
+            try {
+                for (Track t : new ArrayList<>(allTracks(app))) {
+                    if (t.durationMs <= 0 || t.artist == null) continue;
+                    final Object lock = new Object();
+                    final boolean[] done = {false};
+                    final boolean[] offline = {false};
+                    Lyrics.fetch(app, t.artist, t.title, t.album, t.durationMs, (k, r) -> {
+                        synchronized (lock) {
+                            done[0] = true;
+                            offline[0] = r.offline;
+                            lock.notifyAll();
+                        }
+                    });
+                    synchronized (lock) {
+                        while (!done[0]) lock.wait(30000);
+                    }
+                    if (offline[0]) break; // sem internet: fica para a próxima
+                }
+            } catch (Exception ignored) {
+            } finally {
+                synchronized (OfflineMusic.class) {
+                    prefetching = false;
+                }
+            }
+        }, "Letras").start();
+    }
+
     // ---------- Apagar ----------
 
     /** Apaga um álbum (só os ficheiros enviados para o rádio; numa pen não mexe). */
