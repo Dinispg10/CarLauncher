@@ -182,15 +182,15 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
 
     /** Escolher de onde vem a música: telemóvel, músicas offline ou rádio online. */
     private void chooseSource() {
-        Sheet.create(this, "De onde vem a música?")
-                .item("📱  Telemóvel (Bluetooth)", () -> {
+        Sheet.create(this, "Fonte do som")
+                .item("Telemóvel (Bluetooth)", () -> {
                     if (!hub.switchToPhone()) {
                         android.widget.Toast.makeText(this, "O telemóvel não está ligado ao rádio", android.widget.Toast.LENGTH_LONG).show();
                         openPhoneApp();
                     }
                 })
-                .item("💾  Músicas offline", () -> startActivity(new android.content.Intent(this, OfflineActivity.class)))
-                .item("📻  Rádio online", () -> startActivity(new android.content.Intent(this, RadioActivity.class)))
+                .item("Músicas offline", () -> startActivity(new android.content.Intent(this, OfflineActivity.class)))
+                .item("Rádio online", () -> startActivity(new android.content.Intent(this, RadioActivity.class)))
                 .button("Fechar", false, null)
                 .show();
     }
@@ -228,7 +228,7 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
 
     private void showChip(String text) {
         chip.setVisibility(View.VISIBLE);
-        chip.setText(text + "  ›");
+        chip.setText("Fonte: " + text + "  ›");
     }
 
     private void render() {
@@ -253,7 +253,7 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
             label.setText("MULTIMÉDIA");
             title.setText("Nada a tocar");
             subtitle.setText("Ponha música no telemóvel");
-            showChip("Telemóveis");
+            showChip("Telemóvel");
             progressRow.setVisibility(View.GONE);
             play.setImageResource(R.drawable.ic_play_dark);
             eq.setMode(EqualizerView.Mode.STOPPED);
@@ -282,8 +282,8 @@ public class NowPlayingActivity extends Activity implements MediaHub.Listener {
 
         String source = hub.sourceLabel();
         String pkg = hub.sourcePackage();
-        if (pkg != null && pkg.contains("bluetooth")) showChip("Telemóveis");
-        else showChip(source != null ? source : "Telemóveis");
+        if (pkg != null && pkg.contains("bluetooth")) showChip("Telemóvel");
+        else showChip(source != null ? source : "Telemóvel");
 
         showArt(hub.currentArt());
         updateAccent();
